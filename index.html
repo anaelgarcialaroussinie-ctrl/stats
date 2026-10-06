@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stats TikTok</title>
 <meta name="theme-color" content="#15183A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Stats FAM">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 html,body{height:100%}
 body{margin:0;background:#F2F4FA;color:#15183A;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;place-items:center;text-align:center;padding:24px}
@@ -22,6 +28,64 @@ code{font-size:.8rem;opacity:.7;word-break:break-all}
 (function(){
 var BASE="https://mtxhuocwxvzntaomgvny.supabase.co";
 var KEY="sb_publishable_4sroySYTlDwVI2qhQnUeMw_Bp1j_aKh";
+
+/* Navigation par outil : la fiche d'un compte est decoupee en cinq sections
+   au lieu d'un seul long defilement. Injecte ici pour rester maitrisable par git. */
+var EXTRA_CSS = [
+".secnav{position:sticky;top:calc(env(safe-area-inset-top,0px) + 58px);z-index:4;box-shadow:0 6px 18px rgba(0,0,0,.10)}",
+".secnav button{flex:0 0 auto;font-size:.92rem;padding:9px 15px}",
+"@media (min-width:980px){.secnav{flex-wrap:wrap;justify-content:center}}",
+""].join("\n");
+
+var EXTRA_JS = [
+'const SECTIONS=[["resume","Resume"],["plan","Quand publier"],["contenu","Ce qui marche"],["ia","IA et viralite"],["videos","Videos"]];',
+'const SECLABEL={resume:"R\\u00e9sum\\u00e9",plan:"Quand publier",contenu:"Ce qui marche",ia:"IA et viralit\\u00e9",videos:"Vid\\u00e9os"};',
+'let SEC="resume";',
+'function sectionOf(el){',
+'var t=(el.textContent||"").slice(0,320);',
+'if(el.classList.contains("kpis"))return "resume";',
+'if(/Sant\\u00e9 du compte/.test(t))return "resume";',
+'if(/sur ton t\\u00e9l\\u00e9phone|cran d.accueil/.test(t))return "resume";',
+'if(/Ton plan de publication/.test(t))return "plan";',
+'if(/Meilleur cr\\u00e9neau|Quand publier/.test(t))return "plan";',
+'if(/volution/.test(t))return "plan";',
+'if(/Hashtags qui performent/.test(t))return "contenu";',
+'if(/Top 5/.test(t))return "contenu";',
+'if(el.classList.contains("dims"))return "contenu";',
+'if(/Discipline du compte/.test(t))return "ia";',
+'if(/Comparaison avec la niche/.test(t))return "ia";',
+'if(/Devenir viral/.test(t))return "ia";',
+'if(/G\\u00e9n\\u00e9rateur de textes/.test(t))return "ia";',
+'if(/Rapport et plan/.test(t))return "ia";',
+'if(/Toutes les vid\\u00e9os/.test(t))return "videos";',
+'return null;}',
+'function installSections(){',
+'var wrap=document.querySelector("#view > .stack")||document.querySelector(".wrap > .stack");',
+'if(!wrap)return;',
+'var kids=Array.prototype.slice.call(wrap.children);',
+'if(kids.length<6)return;',
+'if(wrap.querySelector(".secnav"))return;',
+'var map=kids.map(function(el,i){return i<3?null:sectionOf(el)});',
+'if(map.filter(function(s){return s}).length<3)return;',
+'var nav=document.createElement("nav");',
+'nav.className="tabs secnav";nav.setAttribute("role","tablist");',
+'nav.innerHTML=SECTIONS.map(function(p){return \'<button role="tab" data-sec="\'+p[0]+\'">\'+SECLABEL[p[0]]+\'</button>\'}).join("");',
+'wrap.insertBefore(nav,kids[3]);',
+'function apply(){',
+'kids.forEach(function(el,i){var s=map[i];if(s)el.style.display=(s===SEC)?"":"none"});',
+'nav.querySelectorAll("[data-sec]").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.sec===SEC))});}',
+'nav.querySelectorAll("[data-sec]").forEach(function(b){b.onclick=function(){SEC=b.dataset.sec;apply();window.scrollTo({top:0,behavior:"smooth"})}});',
+'apply();}',
+''].join("\n");
+
+function patch(html){
+  var n=0;
+  if(html.indexOf(".notice{border-left")>=0){html=html.replace(".notice{border-left",EXTRA_CSS+".notice{border-left");n++}
+  if(html.indexOf('let CUR=null, metric="views";')>=0){html=html.replace('let CUR=null, metric="views";',EXTRA_JS+'let CUR=null, metric="views";');n++}
+  if(html.indexOf("bindPage();bindClient();bindInstall();")>=0){
+    html=html.split("bindPage();bindClient();bindInstall();").join("bindPage();bindClient();bindInstall();try{installSections()}catch(e){}");n++}
+  return n===3?html:html;
+}
 function fail(m){
   document.getElementById("boot").innerHTML=
    '<p><strong>L’application n’a pas pu se charger.</strong></p><p><code>'+String(m).replace(/</g,"&lt;")+'</code></p>'+
@@ -32,7 +96,7 @@ fetch(BASE+"/rest/v1/site_public?select=html&id=eq.1",{headers:{apikey:KEY,Autho
 .then(function(rows){
   var html=rows&&rows[0]&&rows[0].html;
   if(!html)throw new Error("page vide");
-  document.open();document.write(html);document.close();
+  document.open();document.write(patch(html));document.close();
 })
 .catch(function(e){fail(e.message||e)});
 })();
