@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stats TikTok</title>
+<meta name="theme-color" content="#15183A">
+<style>
+html,body{height:100%}
+body{margin:0;background:#F2F4FA;color:#15183A;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;place-items:center;text-align:center;padding:24px}
+@media (prefers-color-scheme:dark){body{background:#0F1128;color:#ECEEFA}}
+.sp{width:34px;height:34px;border-radius:50%;border:3px solid rgba(128,128,160,.3);border-top-color:#B9F650;animation:t .8s linear infinite;margin:0 auto 14px}
+@keyframes t{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.sp{animation:none}}
+button{font:inherit;padding:10px 16px;border-radius:10px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer;margin-top:14px}
+code{font-size:.8rem;opacity:.7;word-break:break-all}
+</style>
+</head>
+<body>
+<div id="boot"><div class="sp"></div><p>Chargement de l'application…</p></div>
+<script>
+(function(){
+var BASE="https://mtxhuocwxvzntaomgvny.supabase.co";
+var KEY="sb_publishable_4sroySYTlDwVI2qhQnUeMw_Bp1j_aKh";
+function fail(m){
+  document.getElementById("boot").innerHTML=
+   '<p><strong>L’application n’a pas pu se charger.</strong></p><p><code>'+String(m).replace(/</g,"&lt;")+'</code></p>'+
+   '<button onclick="location.reload()">Réessayer</button>';
+}
+fetch(BASE+"/rest/v1/site_public?select=html&id=eq.1",{headers:{apikey:KEY,Authorization:"Bearer "+KEY,Accept:"application/json"}})
+.then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json()})
+.then(function(rows){
+  var html=rows&&rows[0]&&rows[0].html;
+  if(!html)throw new Error("page vide");
+  document.open();document.write(html);document.close();
+})
+.catch(function(e){fail(e.message||e)});
+})();
+</script>
+</body>
+</html>
