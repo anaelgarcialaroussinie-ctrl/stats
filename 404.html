@@ -80,6 +80,13 @@ var EXTRA_JS = [
 
 function patch(html){
   var n=0;
+  /* La cle IA accepte desormais Anthropic ou Google Gemini, dont l'offre gratuite suffit. */
+  html=html.split("Rapports IA (optionnel)").join("Rapports et textes IA");
+  html=html.split("Cr\u00e9e une cl\u00e9 sur").join("Gratuit avec Google Gemini : cr\u00e9e une cl\u00e9 sur <a href=\"https://aistudio.google.com/apikey\" target=\"_blank\" rel=\"noopener\">aistudio.google.com</a> (sans carte bancaire). Sinon, cl\u00e9 payante sur");
+  html=html.split("Cl\u00e9 API Anthropic").join("Cl\u00e9 API (Google Gemini ou Anthropic)");
+  html=html.split('placeholder="sk-ant-\u2026"').join('placeholder="AIza\u2026 ou sk-ant-\u2026"');
+  html=html.split("ajoute une cl\u00e9 API Anthropic dans R\u00e9glages").join("ajoute une cl\u00e9 API gratuite Google Gemini dans R\u00e9glages");
+  html=html.split("Ajoute d'abord ta cl\u00e9 API Anthropic").join("Ajoute d'abord une cl\u00e9 API dans R\u00e9glages");
   if(html.indexOf(".notice{border-left")>=0){html=html.replace(".notice{border-left",EXTRA_CSS+".notice{border-left");n++}
   if(html.indexOf('let CUR=null, metric="views";')>=0){html=html.replace('let CUR=null, metric="views";',EXTRA_JS+'let CUR=null, metric="views";');n++}
   if(html.indexOf("bindPage();bindClient();bindInstall();")>=0){
