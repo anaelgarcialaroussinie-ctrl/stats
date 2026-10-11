@@ -37,13 +37,13 @@ function render(keepScroll = false) {
     const prefillCode = new URLSearchParams(location.search).get("code") || "";
     renderOnboarding(app, {
       prefillCode,
-      checkCode: (code) => sync.checkCode(code),
+      checkCode: (code) => (window.FAP_PREVIEW ? Promise.resolve({ role: "coach", team_name: "Aperçu" }) : sync.checkCode(code)),
       restore: async (code) => { await sync.restore(code); location.hash = "today"; current = "today"; render(); },
       onDone: async (profile, code) => {
-        try { await sync.join(code, profile); sync.inbox(); }
+        try { if (!window.FAP_PREVIEW) { await sync.join(code, profile); sync.inbox(); } }
         catch (e) { throw new Error(e.code === "invalid_code" ? "Code d'équipe inconnu." : "Connexion impossible. Vérifie ta connexion internet et réessaie."); }
         store.update((s) => {
-          s.profile = { ...profile, role: sync.role() };
+          s.profile = { ...profile, role: sync.role() || profile.role };
           if (profile.weight) s.weights.push({ date: todayKey(), kg: profile.weight });
         });
         location.hash = "today"; current = "today"; render();
