@@ -23,7 +23,8 @@ export function renderOnboarding(root, { onDone, checkCode, restore, prefillCode
     const s = steps[step];
     let body = "";
     if (s === "who") body = `
-      <h1 class="display">Fight Art<br>Performance</h1>
+      <img class="onb-logo" src="icons/logo.png" alt="Fight Art, MMA et Luta Livre">
+      <h1 class="display">Performance</h1>
       <p class="muted" style="margin-top:12px">Ta préparation, ta nutrition et ton jeu, au même endroit. Deux minutes pour faire connaissance.</p>
       <div class="stack" style="margin-top:22px">
         <label class="field"><span>Ton prénom</span><input class="input" name="name" autocomplete="given-name" value="${esc(d.name)}" placeholder="Ex. Yanis"></label>

@@ -113,6 +113,9 @@ export const sync = {
   async myQuestions() { if (!token) return []; return rpc("fap_my_questions", { p_token: token }); },
   async teamQuestions() { if (!token || meta.role !== "coach") return []; return rpc("fap_team_questions", { p_token: token }); },
 
+  // formation vidéo privée du coach
+  async library() { if (!token || meta.role !== "coach") return []; return rpc("fap_library", { p_token: token }); },
+
   signOut() { token = null; meta = {}; try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(META_KEY); } catch {} emit(); },
 };
 

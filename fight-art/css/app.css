@@ -14,9 +14,9 @@
   --ink: #F3F4EF;
   --muted: #9A9C96;
   --line: #2A2B28;
-  --tape: #B9F650;
+  --tape: #B8F34B;
   --tape-ink: #0A0A0A;
-  --mat: #B9F650;
+  --mat: #B8F34B;
   --good: #5CCB7E;
   --warn: #F0A23B;
   --bad: #F2604B;
@@ -95,12 +95,8 @@ p { margin: 0 0 10px; }
   font-weight: 760; font-stretch: 75%; font-variation-settings: "wdth" 75;
   font-size: 15px;
 }
-.brand-mark {
-  width: 30px; height: 30px; border-radius: 8px;
-  background: var(--tape); color: var(--tape-ink);
-  display: grid; place-items: center;
-  font-weight: 900; font-size: 13px; font-stretch: 62%; font-variation-settings: "wdth" 62;
-}
+.brand-mark { width: 32px; height: 32px; border-radius: 8px; display: block; box-shadow: inset 0 0 0 1px var(--line); }
+.onb-logo { display: block; width: min(280px, 80%); height: auto; margin: 4px 0 14px -6px; }
 .avatar {
   width: 38px; height: 38px; border-radius: 50%;
   border: 0; background: var(--surface); color: var(--ink);

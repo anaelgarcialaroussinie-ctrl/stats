@@ -1,10 +1,12 @@
 // Cache hors ligne : l'appli s'ouvre même sans réseau.
-const VERSION = "fap-v5";
+const VERSION = "fap-v6";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/app.css", "./fonts/archivo.ttf",
   "./js/app.js", "./js/store.js", "./js/engine.js", "./js/data.js", "./js/ui.js", "./js/off.js", "./js/sync.js", "./js/config.js",
   "./js/views/onboarding.js", "./js/views/today.js", "./js/views/nutrition.js", "./js/views/training.js",
-  "./js/views/progress.js", "./js/views/academy.js", "./js/views/assistant.js", "./js/views/systems.js", "./js/systems-data.js", "./js/academy-data.js", "./js/views/coach.js", "./js/views/sessions.js", "./js/views/timer.js",
+  "./js/views/progress.js", "./js/views/academy.js", "./js/views/assistant.js", "./js/views/systems.js", "./js/systems-data.js",
+  "./js/luta-data.js",
+  "./icons/logo.png", "./js/academy-data.js", "./js/views/coach.js", "./js/views/sessions.js", "./js/views/timer.js",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
 ];
 

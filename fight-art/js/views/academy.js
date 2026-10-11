@@ -4,6 +4,8 @@ import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PL
 import { runTimer } from "./timer.js";
 import { frDate } from "../engine.js";
 import { openExplorer, editSystem, systemTree, drillSystem } from "./systems.js";
+import { LUTA_INTRO, GLOSSARY, LESSON, GRADES, CYCLES } from "../luta-data.js";
+import { sync } from "../sync.js";
 
 const moveLabel = (id) => MOVES.find((m) => m.id === id)?.label || id;
 const moveName = (id) => MOVES.find((m) => m.id === id)?.name || id;
@@ -14,6 +16,7 @@ const MODULES = [
   { id: "stances", title: "Gardes et attitudes", text: "Orthodoxe, gaucher, switch, garde hybride MMA, posture de lutte." },
   { id: "profiles", title: "Les profils de combattants", text: "Les 5 styles qui ressortent de l'analyse UFC, et comment les contrer." },
   { id: "combos", title: "Combinaisons classiques", text: "Ce que chaque enchaînement ouvre, ce qu'il expose." },
+  { id: "luta", title: "Luta Livre", text: "Vocabulaire, programme des ceintures, cycle de lutte 6 semaines, cycle montée 4 semaines, structure d'un cours." },
   { id: "arts", title: "Les arts du MMA", text: "Ce que la boxe, le muay thaï, la lutte, le judo, le jiu-jitsu et la Luta Livre apportent." },
 ];
 
@@ -51,6 +54,12 @@ export function renderAcademy(el, ctx) {
       <ul class="list">${MODULES.map((m) => `<li role="button" tabindex="0" data-mod="${m.id}"><div><div style="font-weight:700">${esc(m.title)}</div><div class="meta">${esc(m.text)}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>
     </section>
 
+    ${sync.role() === "coach" ? `<h2 class="h-sec">Ma formation vidéo</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Certification Luta Livre de Nicolas Renier : les 85 vidéos rangées par module, avec tes notes. Visible par toi seul.</p>
+      <button class="btn tape-btn block" data-library>${icon("play")} Ouvrir la formation</button>
+    </section>` : ""}
+
     <h2 class="h-sec">Préparer un adversaire</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:8px">Fiche d'analyse et game plan : garde, attaques favorites, réactions sous pression, plan A et plan B.</p>
@@ -67,6 +76,7 @@ export function renderAcademy(el, ctx) {
   el.querySelector("[data-newsys]").addEventListener("click", () => editSystem(null, ctx.refresh, { root: "double", type: "off" }));
   el.querySelectorAll("[data-editsys]").forEach((b) => b.addEventListener("click", () => editSystem(systems.find((x) => x.id === b.dataset.editsys), ctx.refresh)));
   el.querySelectorAll("[data-drillsys]").forEach((b) => b.addEventListener("click", () => drillSystem(systems.find((x) => x.id === b.dataset.drillsys))));
+  el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
   el.querySelector("[data-newscout]").addEventListener("click", () => editScout(null, ctx.refresh));
   el.querySelectorAll("[data-scout]").forEach((li) => li.addEventListener("click", () => editScout(scouts.find((s) => s.id === li.dataset.scout), ctx.refresh)));
 }
@@ -150,8 +160,56 @@ function openModule(id, ctx) {
     return;
   }
 
+  if (id === "luta") return openLuta();
   if (id === "arts") return openSheet("Les arts du MMA", ARTS.map((a) => `
     <section class="panel" style="margin-bottom:10px"><h3>${esc(a.name)}</h3><p class="small" style="margin:6px 0"><b>Ce qu'il apporte</b> : ${esc(a.brings)}</p><p class="small" style="margin:0"><b>À adapter au MMA</b> : ${esc(a.adapt)}</p></section>`).join(""));
+}
+
+// ---------- Luta Livre ----------
+function openLuta() {
+  openSheet("Luta Livre", `
+    <p class="small">${esc(LUTA_INTRO)}</p>
+    <details class="sys-card" open><summary><b>Structure d'un cours</b></summary>
+      <p class="tiny muted">${esc(LESSON.intro)}</p>
+      <ol class="plan">${LESSON.steps.map((x) => `<li><div><b>${esc(x.name)}</b> <span class="tiny muted">· ${x.min} min</span><div class="small">${esc(x.text)}</div></div></li>`).join("")}</ol>
+    </details>
+    <details class="sys-card"><summary><b>Programme des ceintures</b></summary>
+      ${GRADES.map((g) => `<div style="margin-top:10px"><div class="row" style="gap:8px"><span style="width:28px;height:8px;border-radius:4px;background:${g.color};display:inline-block"></span><b>${esc(g.name)}</b></div><ul class="bul">${g.themes.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>`).join("")}
+    </details>
+    ${CYCLES.map((c) => `<details class="sys-card"><summary><b>${esc(c.name)}</b><span class="tiny muted" style="display:block">${c.weeks} semaines</span></summary>
+      <p class="small">${esc(c.text)}</p>
+      ${c.plan.map((w) => `<div class="panel" style="padding:12px;margin-top:8px"><div class="tiny muted">Semaine ${w.week}</div><b>${esc(w.theme)}</b>
+        <ul class="bul">${w.drills.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>
+        <p class="small" style="margin:6px 0 0"><b>Sparring à thème</b> : ${esc(w.spar)}</p></div>`).join("")}
+    </details>`).join("")}
+    <details class="sys-card"><summary><b>Vocabulaire</b></summary>
+      ${GLOSSARY.map((g) => `<p class="small" style="margin:8px 0"><b>${esc(g.term)}</b> : ${esc(g.def)}</p>`).join("")}
+    </details>
+    <p class="hint">Les clés de jambes de la Luta Livre (one leg, 50/50, K-guard, false reap) sont dans « Risques et ouvertures des techniques ». La clé de talon est réservée aux adultes avancés.</p>`);
+}
+
+// ---------- formation vidéo du coach (privée, chargée depuis la base) ----------
+async function openLibrary() {
+  const body = openSheet("Ma formation vidéo", `<p class="muted small">Chargement…</p>`);
+  let rows = [];
+  try { rows = window.FAP_PREVIEW ? [] : await sync.library(); }
+  catch { body.innerHTML = `<p class="notice is-warn small">Impossible de charger la formation. Vérifie ta connexion.</p>`; return; }
+  if (!rows.length) { body.innerHTML = `<p class="muted small">${window.FAP_PREVIEW ? "Dans l'aperçu, la formation n'est pas chargée : elle s'affiche dans l'appli du coach." : "Aucune vidéo pour l'instant."}</p>`; return; }
+  const mods = [];
+  rows.forEach((r) => { let m = mods.find((x) => x.no === r.module_no); if (!m) mods.push(m = { no: r.module_no, title: r.module_title, items: [] }); m.items.push(r); });
+  const notes = store.get().libNotes || {};
+  body.innerHTML = `<p class="muted small">${esc(rows[0].source || "")}. Note ce que tu retiens de chaque vidéo : tes notes sont sauvegardées et suivent ton compte sur tous tes appareils.</p>
+    ${mods.map((m) => `<details class="sys-card"><summary><b>Module ${m.no}</b><span class="tiny muted" style="display:block">${esc(m.title)} · ${m.items.length} vidéo${m.items.length > 1 ? "s" : ""}${m.items.some((i) => notes[i.url]) ? " · notes" : ""}</span></summary>
+      ${m.items.map((i) => `<div style="padding:10px 0;border-top:1px solid var(--line)">
+        <div class="row between" style="gap:8px"><span class="small"><b>${i.position}.</b> ${esc(i.title)}</span><a class="btn small" href="${esc(i.url)}" target="_blank" rel="noopener">${icon("play")} Voir</a></div>
+        <textarea class="input" rows="2" data-note="${esc(i.url)}" placeholder="Ce que je retiens…" style="margin-top:8px">${esc(notes[i.url] || "")}</textarea>
+      </div>`).join("")}
+    </details>`).join("")}`;
+  let t;
+  body.addEventListener("input", (e) => {
+    const ta = e.target.closest("[data-note]"); if (!ta) return;
+    clearTimeout(t); t = setTimeout(() => store.update((st) => { st.libNotes = { ...(st.libNotes || {}), [ta.dataset.note]: ta.value.trim() }; if (!st.libNotes[ta.dataset.note]) delete st.libNotes[ta.dataset.note]; }), 600);
+  });
 }
 
 // ---------- fiche adversaire + game plan ----------

@@ -3,6 +3,7 @@ import { store, uid, todayKey } from "../store.js";
 import { esc, icon, openSheet, closeSheet, toast } from "../ui.js";
 import { TECHS, MAIN_TECHS, FAMILIES, tech } from "../systems-data.js";
 import { runTimer } from "./timer.js";
+import { isMinor } from "../engine.js";
 
 const name = (id) => tech(id)?.name || id;
 
@@ -10,6 +11,7 @@ const name = (id) => tech(id)?.name || id;
 export function openExplorer(startId, after) {
   let cur = startId || null;
   const history = [];
+  const minor = isMinor(store.get().profile);
   const body = openSheet("Risques et ouvertures", "");
   const draw = () => {
     if (!cur) {
@@ -26,8 +28,9 @@ export function openExplorer(startId, after) {
       ${t.counters.length ? `<h4 class="sys-h">Ce à quoi elle t'expose</h4>${t.counters.map((c) => `<div class="risk">
           <div class="risk-top"><button class="chip risk-chip" data-t="${c.by}">${esc(name(c.by))}</button></div>
           <p class="small" style="margin:6px 0">${esc(c.text)}</p>
-          ${c.answer ? `<p class="small" style="margin:0"><b>Ta réponse</b> : ${esc(c.answerText)} <button class="link" data-t="${c.answer}">${esc(name(c.answer))}</button></p>` : ""}
+          ${c.answerText ? `<p class="small" style="margin:0"><b>Ta réponse</b> : ${esc(c.answerText)} ${c.answer ? `<button class="link" data-t="${c.answer}">${esc(name(c.answer))}</button>` : ""}</p>` : ""}
         </div>`).join("")}` : ""}
+      ${t.adultOnly ? `<p class="notice is-alert small" style="margin-top:12px">${minor ? "Interdite pour toi : réservée aux adultes. Travaille plutôt la clé de cheville droite et le contrôle des jambes." : "Réservée aux adultes avancés, avec un partenaire de confiance et sous l'œil du coach."}</p>` : ""}
       ${t.reduce ? `<p class="notice small" style="margin-top:12px">${esc(t.reduce)}</p>` : ""}
       ${t.counters.length || t.opens.length ? `<div class="grid2" style="margin-top:14px">
         <button class="btn tape-btn small" data-build="off">Système offensif</button>

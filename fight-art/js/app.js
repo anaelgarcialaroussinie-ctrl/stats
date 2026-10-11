@@ -62,7 +62,7 @@ function render(keepScroll = false) {
   app.innerHTML = `
     <main class="screen">
       <header class="topbar">
-        <div class="brand"><span class="brand-mark" aria-hidden="true">FA</span><span>Fight Art Performance</span></div>
+        <div class="brand"><img class="brand-mark" src="icons/icon-192.png" alt="" aria-hidden="true"><span>Fight Art Performance</span></div>
         <div class="row" style="gap:8px"><button class="icon-btn" data-assistant aria-label="Assistant" style="background:var(--tape);color:var(--tape-ink)">${icon("chat")}</button><button class="avatar" data-profile aria-label="Mon profil">${esc(initials(p.name))}</button></div>
       </header>
       ${window.FAP_PREVIEW ? `<p class="notice is-warn small" style="margin-bottom:14px">Aperçu de démonstration : le scan, la recherche d'aliments, l'équipe et l'assistant fonctionnent dans la version en ligne de l'appli.</p>` : ""}

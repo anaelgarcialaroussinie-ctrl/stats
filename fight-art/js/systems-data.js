@@ -6,6 +6,7 @@ export const FAMILIES = [
   { id: "lutte", label: "Lutte et clinch" },
   { id: "dessus", label: "Sol, dessus" },
   { id: "dessous", label: "Sol, dessous" },
+  { id: "jambes", label: "Clés de jambes (Luta Livre)" },
 ];
 
 export const TECHS = [
@@ -132,17 +133,112 @@ export const TECHS = [
     ],
     reduce: "Déplacer son poids sur la jambe que tu crochètes." },
   { id: "sprawl", name: "Sprawl", family: "lutte", zone: "Défense",
-    opens: ["frontheadlock", "cross"],
+    opens: ["frontheadlock", "snapdown", "cross"],
     counters: [
       { by: "single", text: "Il enchaîne sur une jambe.", answer: "frontheadlock", answerText: "Garde les hanches lourdes et prends la tête et le bras." },
     ],
-    reduce: "Hanches au sol, jambes en arrière, remonter vite en garde." },
+    reduce: "Hanches au sol, jambes en arrière, remonter vite en garde. Peu de défenses, mais maîtrisées : d'abord les mains et la distance, puis le sprawl." },
   { id: "frontheadlock", name: "Front headlock", family: "lutte", zone: "Défense → sol",
-    opens: ["guillotine", "darce", "back"],
+    opens: ["guillotine", "darce", "back", "sidecontrol", "guardpass"],
     counters: [
       { by: "standup", text: "Il se relève et dégage sa tête.", answer: "cross", answerText: "Frappe à la sortie, ou suis-le en guillotine debout." },
     ],
-    reduce: "Contrôle tête et bras ensemble, poids sur sa nuque." },
+    reduce: "Contrôle tête et bras ensemble, poids sur sa nuque. Position carrefour en Luta Livre : de là on va au 100 kilos, au dos, au passage de garde ou à la guillotine." },
+
+  // attaques de lutte efficaces en grappling
+  { id: "highcrotch", name: "High crotch", family: "lutte", zone: "Distance → sol",
+    opens: ["single", "double", "guardpass"],
+    counters: [
+      { by: "sprawl", text: "Il sprawle sur ta tête restée à l'extérieur.", answer: "single", answerText: "Tête collée contre sa poitrine, finis en single ou cours en angle." },
+      { by: "guillotine", text: "Ta tête est dehors : il serre le cou.", answer: "guardpass", answerText: "Tête haute, passe du côté du bras qui étrangle." },
+      { by: "whizzer", text: "Il pèse en whizzer sur ton bras intérieur.", answer: "trip", answerText: "Monte la jambe, puis crochet ou passage derrière." },
+    ],
+    reduce: "Entrée plus courte que le double : idéale contre la garde décalée du MMA, à condition de garder la tête collée." },
+  { id: "armdrag", name: "Arm drag", family: "lutte", zone: "Contact",
+    opens: ["back", "single", "bodylock"],
+    counters: [
+      { by: "frame", text: "Il retire son bras et recule avant que tu passes.", answer: "single", answerText: "Son recul arme son poids sur la jambe avant : enchaîne le single." },
+      { by: "whizzer", text: "Il tourne avec toi et pèse sur ton épaule.", answer: "bodylock", answerText: "Reste collé et va chercher la ceinture." },
+    ],
+    reduce: "Tirer vers le bas et vers toi en même temps que tu avances en angle : c'est le pas qui fait l'arm drag, pas le bras." },
+  { id: "snapdown", name: "Snap down", family: "lutte", zone: "Contact",
+    opens: ["frontheadlock", "guillotine", "darce", "back"],
+    counters: [
+      { by: "double", text: "Il profite de ta traction pour plonger dans tes jambes.", answer: "sprawl", answerText: "Après le snap, hanches en arrière immédiatement." },
+      { by: "standup", text: "Il relève la tête et se replace.", answer: "highcrotch", answerText: "Quand il relève la tête et pousse, entre sous lui." },
+    ],
+    reduce: "Casse sa posture vers le bas puis contrôle tête et bras. Très efficace contre un adversaire qui penche le buste." },
+  { id: "twoonone", name: "2 sur 1 (contrôle d'un bras)", family: "lutte", zone: "Contact",
+    opens: ["armdrag", "single", "back", "throwby"],
+    counters: [
+      { by: "frame", text: "Il retire son bras en circulant.", answer: "single", answerText: "Garde la main sur le poignet et tire vers le single." },
+      { by: "elbow", text: "En MMA, sa main libre frappe pendant que tes deux mains tiennent un bras.", answer: "clinch", answerText: "Tête collée côté bras contrôlé, et pas de 2 sur 1 statique : enchaîne vite." },
+    ],
+    reduce: "Contrôle fort mais coûteux en MMA : tes deux mains sont prises. À utiliser pour enchaîner, pas pour attendre." },
+  { id: "throwby", name: "Throw by", family: "lutte", zone: "Contact",
+    opens: ["back", "single", "bodylock"],
+    counters: [
+      { by: "frame", text: "Il garde la ligne et ne se laisse pas déborder.", answer: "double", answerText: "Il a tourné le buste pour résister : son centre est libre pour le double." },
+    ],
+    reduce: "Pousse son bras en travers de son corps et passe derrière : un pas de côté vaut mieux qu'une grosse traction." },
+
+  // ---- clés de jambes (Luta Livre)
+  { id: "butterfly", name: "Garde papillon", family: "jambes", zone: "Sol, dessous",
+    opens: ["onelegx", "xguard", "standup", "guillotine"],
+    counters: [
+      { by: "guardpass", text: "Il écrase la garde en passant en double under (bras sous les jambes).", answer: "shrimp", answerText: "Réagis tôt : sortie de hanche et pieds dans ses hanches avant qu'il ne colle." },
+      { by: "gnp", text: "En MMA, il frappe pendant que tu es assis.", answer: "standup", answerText: "La garde papillon sert d'abord de tremplin pour te relever ou entrer dans les jambes." },
+    ],
+    reduce: "Rester assis, mains actives sur sa tête ou ses bras, jamais à plat dos." },
+  { id: "halfguard", name: "Demi-garde", family: "jambes", zone: "Sol, dessous",
+    opens: ["onelegx", "kguard", "guillotine", "single"],
+    counters: [
+      { by: "guardpass", text: "Il écrase avec la tête de ton côté (crossface) et libère sa jambe.", answer: "shrimp", answerText: "Gagne l'underhook ou un cadre sur le cou avant qu'il installe le crossface." },
+      { by: "gnp", text: "En MMA, il frappe en coudes depuis le dessus.", answer: "standup", answerText: "Underhook et relevé contre la cage plutôt que rester à plat." },
+    ],
+    reduce: "Sur le côté, jamais à plat. En Luta Livre, la demi-garde mène vite aux jambes (one leg) ou à la guillotine." },
+  { id: "kguard", name: "K-guard", family: "jambes", zone: "Sol, dessous",
+    opens: ["onelegx", "falsereap", "heelhook", "back"],
+    counters: [
+      { by: "guardpass", text: "Il recule la jambe et passe pendant que tu entres.", answer: "shrimp", answerText: "Entre en tirant sur sa jambe, pas en glissant sous lui." },
+    ],
+    reduce: "Entrée aux jambes depuis la garde ouverte : contrôle sa jambe avant de penser à la clé." },
+  { id: "xguard", name: "X-guard", family: "jambes", zone: "Sol, dessous",
+    opens: ["anklelock", "onelegx", "standup"],
+    counters: [
+      { by: "guardpass", text: "Il libère sa jambe et retombe sur toi.", answer: "shrimp", answerText: "Garde ses appuis déséquilibrés : soulève, sors, ou passe à la cheville." },
+    ],
+    reduce: "Il est sur une jambe : renverse, relève-toi ou attaque la cheville." },
+  { id: "onelegx", name: "One leg (Single leg X)", family: "jambes", zone: "Sol, jambes",
+    opens: ["anklelock", "heelhook", "fiftyfifty", "standup"],
+    counters: [
+      { by: "guardpass", text: "Il libère son genou et passe pendant que tu cherches la clé.", answer: "standup", answerText: "Contrôle le genou d'abord ; si la clé ne vient pas, renverse et relève-toi." },
+      { by: "gnp", text: "En MMA, il frappe d'en haut pendant que tu attaques sa jambe.", answer: "standup", answerText: "Ne reste pas en dessous : soit tu finis, soit tu te relèves." },
+    ],
+    reduce: "Position de base des connexions en Luta Livre : depuis papillon, demi-garde, K-guard." },
+  { id: "fiftyfifty", name: "50/50", family: "jambes", zone: "Sol, jambes",
+    opens: ["heelhook", "anklelock", "standup"],
+    counters: [
+      { by: "heelhook", text: "Position symétrique : il a les mêmes attaques que toi sur ta jambe.", answer: "heelhook", answerText: "Cache ton talon d'abord (pied en flexion, genou aligné), puis attaque le sien." },
+    ],
+    reduce: "Ne pas y rester sans plan : défendre son talon avant d'attaquer." },
+  { id: "falsereap", name: "False reap", family: "jambes", zone: "Sol, jambes",
+    opens: ["heelhook", "back"],
+    counters: [
+      { by: "guardpass", text: "Il recule et sort la jambe avant que tu contrôles le genou.", answer: "kguard", answerText: "Reviens en K-guard et réattaque." },
+    ],
+    reduce: "Position qui expose fortement le genou de l'adversaire : contrôle lent et précis à l'entraînement." },
+  { id: "anklelock", name: "Clé de cheville (droite)", family: "jambes", zone: "Sol, jambes", opens: ["standup"],
+    counters: [
+      { by: "guardpass", text: "Tu tombes en arrière sans contrôle : il libère le pied et passe.", answer: "onelegx", answerText: "Contrôle son genou (one leg) avant de finir." },
+      { by: "heelhook", text: "Il te renvoie une attaque sur ta propre jambe.", answer: "", answerText: "Jambe extérieure sur sa hanche, talon caché : finis vite ou lâche et protège-toi." },
+    ],
+    reduce: "La clé de jambe de base, autorisée chez les débutants dans la plupart des règlements. Si elle échoue, tu te relèves." },
+  { id: "heelhook", name: "Clé de talon", family: "jambes", zone: "Sol, jambes", opens: [], adultOnly: true,
+    counters: [
+      { by: "guardpass", text: "Il dégage son talon en tournant et passe.", answer: "onelegx", answerText: "Le contrôle du genou passe avant la saisie du talon." },
+    ],
+    reduce: "Clé la plus dangereuse pour le genou : la douleur arrive après la lésion. Serrer lentement, taper tôt. Réservée aux adultes avancés, interdite aux moins de 18 ans." },
 
   // ---- sol dessus
   { id: "guardpass", name: "Passage de garde", family: "dessus", zone: "Sol, dessus",
@@ -152,7 +248,7 @@ export const TECHS = [
       { by: "standup", text: "Il profite de l'espace pour se relever.", answer: "sidecontrol", answerText: "Passe genou devant en gardant la pression." },
     ],
     reduce: "Genou en premier, pas la tête, garder la pression." },
-  { id: "sidecontrol", name: "Contrôle latéral", family: "dessus", zone: "Sol, dessus",
+  { id: "sidecontrol", name: "Contrôle latéral (100 kilos)", family: "dessus", zone: "Sol, dessus",
     opens: ["mount", "armtriangle", "kimura", "gnp"],
     counters: [
       { by: "shrimp", text: "Il remet la garde en sortie de hanche.", answer: "mount", answerText: "Bloque la hanche avec le genou, monte en montée quand il tourne." },
@@ -182,7 +278,7 @@ export const TECHS = [
   // soumissions (ce sont aussi des réponses)
   { id: "rnc", name: "Étranglement arrière", family: "dessus", zone: "Dos", opens: [], counters: [{ by: "turnin", text: "Il protège le cou et se retourne.", answer: "back", answerText: "Change de bras, frappe pour ouvrir le cou." }], reduce: "La soumission n°1 de l'UFC." },
   { id: "armtriangle", name: "Arm-triangle", family: "dessus", zone: "Sol, dessus", opens: [], counters: [{ by: "shrimp", text: "Il sort la tête ou tourne vers toi.", answer: "mount", answerText: "Passe du côté opposé pour finir." }], reduce: "Finir du côté opposé au bras piégé." },
-  { id: "guillotine", name: "Guillotine", family: "lutte", zone: "Debout ou sol", opens: [], counters: [{ by: "guardpass", text: "Il passe du côté du bras et tu te retrouves en dessous.", answer: "standup", answerText: "Si ça ne finit pas vite, lâche et relève-toi." }], reduce: "16 % des soumissions UFC : la punition des entrées tête basse." },
+  { id: "guillotine", name: "Guillotine", family: "lutte", zone: "Debout ou sol", opens: ["mount", "armtriangle", "sidecontrol"], counters: [{ by: "guardpass", text: "Il passe du côté du bras et tu te retrouves en dessous.", answer: "mount", answerText: "Garde la tête et utilise sa défense pour renverser et monter en montée ; si rien ne vient, lâche et relève-toi." }, { by: "turnin", text: "Il libère son cou en tournant vers ton bras.", answer: "armtriangle", answerText: "Garde son bras piégé avec la tête : passe au triangle de bras." }], reduce: "16 % des soumissions UFC : la punition des entrées tête basse." },
   { id: "darce", name: "D'arce", family: "lutte", zone: "Sol", opens: [], counters: [], reduce: "Depuis le front headlock ou quand il entre tête basse." },
   { id: "kimura", name: "Kimura", family: "dessus", zone: "Sol", opens: ["back"], counters: [], reduce: "Utile aussi pour contrôler et prendre le dos." },
   { id: "armbar", name: "Clé de bras", family: "dessus", zone: "Sol", opens: [], counters: [{ by: "stack", text: "Il se relève et t'écrase.", answer: "standup", answerText: "Finir vite ou revenir en position." }], reduce: "Du dessus (montée) bien plus sûre qu'en garde." },
