@@ -1,0 +1,107 @@
+import { esc, icon, openSheet, closeSheet, toast, initials, sparkline } from "../ui.js";
+import { fmt, readiness, alerts, weeklyLoad, findClass, frDate, isMinor } from "../engine.js";
+import { todayKey, addDays } from "../store.js";
+import { LEVELS } from "../data.js";
+import { sync } from "../sync.js";
+
+// Exemple affiché tant qu'aucune équipe n'est reliée.
+const SAMPLE = [
+  { name: "Exemple · Yanis", level: "Compétiteur", score: 46, trend: [72, 64, 58, 51, 46], alert: "3 jours en récupération, douleur au genou signalée", weight: 71.8, classLimit: 70.3, load: 2140, loadPrev: 1520, sparring: 3 },
+  { name: "Exemple · Inès", level: "Construction", score: 81, trend: [70, 74, 78, 80, 81], alert: "", weight: 56.2, classLimit: 56.7, load: 1380, loadPrev: 1400, sparring: 1 },
+  { name: "Exemple · Tom", level: "Fondations", score: 64, trend: [66, 60, 70, 62, 64], alert: "Charge +41 % sur une semaine", weight: 83.5, classLimit: 83.9, load: 1690, loadPrev: 1200, sparring: 0 },
+];
+
+const lvl = (s) => (s === null ? "none" : s >= 70 ? "good" : s >= 50 ? "warn" : "bad");
+
+// transforme les données brutes d'un fighter en résumé pour le coach
+function summarize(m) {
+  const key = todayKey();
+  const st = { checkins: {}, sessions: {}, weights: [], food: {}, ...(m.state || {}) };
+  const p = { ...(m.profile || {}), name: m.name };
+  const c = st.checkins[key];
+  const r = c ? readiness(c) : null;
+  const trend = [...Array(7)].map((_, i) => st.checkins[addDays(key, -6 + i)]).filter(Boolean).map((x) => readiness(x).score);
+  const al = alerts(st, key).map((a) => a.text);
+  if (c?.pain) al.unshift(`Douleur signalée ce matin (${(c.painZones || []).join(", ") || "zone non précisée"}, ${c.painLevel}/10)`);
+  const w = [...st.weights].sort((a, b) => a.date.localeCompare(b.date));
+  const cl = findClass(p);
+  const load = weeklyLoad(st, key);
+  const sparring = [...Array(7)].map((_, i) => st.sessions[addDays(key, -i)]?.logs || []).flat().filter((l) => l.sparring === "hard").length;
+  return {
+    id: m.id, name: m.name, p, st, minor: isMinor(p),
+    level: LEVELS.find((l) => l.id === p.level)?.label || "",
+    score: r ? r.score : null, checkedIn: !!c, trend,
+    alert: al.join(" · "), weight: w.length ? w[w.length - 1].kg : p.weight, weights: w,
+    classLimit: cl?.maxKg, className: cl?.label, load: load.week, loadPrev: load.prev, sparring,
+    lastSeen: m.last_seen,
+  };
+}
+
+export function renderCoach(el, ctx) {
+  const live = sync.connected() && sync.role() === "coach";
+  if (!live) return draw(el, SAMPLE, null, false);
+  const cached = sync.cachedTeam();
+  draw(el, cached ? cached.members.map(summarize) : null, cached, true);
+  sync.team().then((t) => { if (el.isConnected) draw(el, t.members.map(summarize), t, true); })
+    .catch(() => { if (el.isConnected && !cached) el.innerHTML = `<h1 class="display" style="margin:6px 0 14px">Équipe</h1><p class="notice is-warn">Impossible de charger l'équipe. Vérifie ta connexion internet.</p>`; });
+}
+
+function draw(el, team, raw, live) {
+  if (!team) { el.innerHTML = `<h1 class="display" style="margin:6px 0 14px">Équipe</h1><p class="muted">Chargement de l'équipe…</p>`; return; }
+  const flagged = team.filter((f) => f.alert || (f.score !== null && f.score < 50));
+  const sorted = [...team].sort((a, b) => (a.score ?? 101) - (b.score ?? 101));
+
+  el.innerHTML = `
+    <h1 class="display" style="margin:6px 0 14px">Équipe</h1>
+    ${live ? "" : `<p class="notice is-warn">Aperçu avec des fighters d'exemple. Relie ton téléphone à l'équipe avec ton code coach pour voir tes vrais fighters.</p>`}
+    ${live && !team.length ? `<section class="panel empty"><h3>Aucun fighter pour l'instant</h3><p class="small">Donne-leur le code d'équipe <b class="num">${esc(raw?.join_code || "")}</b> : ils le saisissent à l'ouverture de l'appli.</p><button class="btn tape-btn" data-copycode>Copier le code</button></section>` : ""}
+
+    ${team.length ? `<div class="grid3" style="margin-top:14px">
+      <div class="panel"><div class="muted tiny">Fighters</div><div class="display num" style="font-size:32px">${team.length}</div></div>
+      <div class="panel"><div class="muted tiny">Prêts</div><div class="display num good" style="font-size:32px">${team.filter((f) => f.score !== null && f.score >= 70).length}</div></div>
+      <div class="panel"><div class="muted tiny">À suivre</div><div class="display num bad" style="font-size:32px">${flagged.length}</div></div>
+    </div>` : ""}
+
+    ${flagged.length ? `<h2 class="h-sec">À suivre aujourd'hui</h2><div class="stack">${flagged.map((f) => `<p class="notice ${f.score !== null && f.score < 50 ? "is-alert" : "is-warn"}"><b>${esc(f.name)}</b> · ${esc(f.alert || "Forme basse ce matin")}</p>`).join("")}</div>` : ""}
+
+    ${team.length ? `<h2 class="h-sec">Forme du jour</h2>
+    <section class="panel">${sorted.map((f) => `
+      <div class="fighter-row" role="button" tabindex="0" data-f="${team.indexOf(f)}">
+        <span class="avatar">${esc(initials(f.name.replace("Exemple · ", "")))}</span>
+        <div><div style="font-weight:700">${esc(f.name)}${f.minor ? ` <span class="badge tiny">mineur</span>` : ""}</div><div class="meta small muted">${esc(f.level)}${f.weight ? " · " + fmt(f.weight, 1) + " kg" : ""}${live && !f.checkedIn ? " · pas de check-in aujourd'hui" : ""}</div></div>
+        <span class="badge">${f.score === null ? `<span class="muted">–</span>` : `<span class="dot bg-${lvl(f.score)}"></span><b class="num">${f.score}</b>`}</span>
+      </div>`).join("")}</section>` : ""}
+
+    ${live && team.length ? `<section class="panel row between" style="margin-top:14px"><div><div class="muted small">Code d'équipe à donner</div><b class="num">${esc(raw?.join_code || "")}</b></div><button class="btn small ghost" data-copycode>Copier</button></section>` : ""}
+  `;
+
+  el.querySelectorAll("[data-f]").forEach((r) => r.addEventListener("click", () => openFighter(team[r.dataset.f], live)));
+  el.querySelectorAll("[data-copycode]").forEach((b) => b.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(raw?.join_code || ""); toast("Code copié"); } catch { toast("Sélectionne le code pour le copier"); }
+  }));
+}
+
+function openFighter(f, live) {
+  const gap = f.weight && f.classLimit ? (f.weight / f.classLimit - 1) * 100 : null;
+  const body = openSheet(f.name, `
+    <div class="grid2">
+      <div class="panel"><div class="muted tiny">Forme</div><div class="display num ${f.score === null ? "" : lvl(f.score)}" style="font-size:34px">${f.score ?? "–"}</div><div class="tiny muted">${f.trend.length ? "Derniers jours : " + f.trend.join(" · ") : "Aucun check-in récent"}</div></div>
+      <div class="panel"><div class="muted tiny">Charge 7 jours</div><div class="display num" style="font-size:34px">${fmt(f.load)}</div><div class="tiny muted">${f.loadPrev ? `${f.load > f.loadPrev ? "+" : ""}${fmt((f.load / f.loadPrev - 1) * 100)} % vs semaine passée` : "Pas de semaine précédente"}</div></div>
+      <div class="panel"><div class="muted tiny">Poids</div><div class="display num" style="font-size:34px">${f.weight ? fmt(f.weight, 1) : "–"}</div><div class="tiny muted">${gap !== null ? (gap > 0 ? `+${fmt(gap, 1)} % au-dessus des ${esc(f.className || "")}` : `Dans la limite des ${esc(f.className || "")}`) : ""}</div></div>
+      <div class="panel"><div class="muted tiny">Sparring dur</div><div class="display num" style="font-size:34px">${f.sparring}</div><div class="tiny muted">séances sur 7 jours</div></div>
+    </div>
+    ${f.alert ? `<p class="notice is-alert" style="margin-top:12px">${esc(f.alert)}</p>` : ""}
+    ${f.weights?.length > 1 ? `<h3 class="h-sec" style="font-size:18px">Poids</h3>${sparkline(f.weights.slice(-30).map((x) => ({ v: x.kg })), { unit: " kg" })}` : ""}
+    ${f.lastSeen ? `<p class="hint">Dernière ouverture de l'appli : ${esc(new Date(f.lastSeen).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))}</p>` : ""}
+    <form data-msg style="margin-top:14px">
+      <label class="field"><span>Message à ${esc(f.name.split(" ")[0])}</span><textarea class="input" name="body" rows="3" placeholder="Ex. On allège demain, viens me voir avant le cours."></textarea></label>
+      <button class="btn block" style="margin-top:10px" ${live ? "" : "disabled"}>Envoyer</button>
+      ${live ? "" : `<p class="hint">L'envoi de messages marche avec tes vrais fighters.</p>`}
+    </form>`);
+  body.querySelector("[data-msg]").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = e.target.body.value.trim(); if (!text || !live) return;
+    try { await sync.send(f.id, text); closeSheet(); toast("Message envoyé"); }
+    catch { toast("Envoi impossible : vérifie ta connexion"); }
+  });
+}
