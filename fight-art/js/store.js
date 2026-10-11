@@ -12,6 +12,7 @@ const empty = () => ({
   lifts: {},              // { exId: derniere charge de travail kg }
   combos: [],             // combos fétiches (Academy)
   scouting: [],           // fiches adversaires et game plans
+  systems: [],            // systèmes offensifs et défensifs
 });
 
 let state = load();

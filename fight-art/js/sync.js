@@ -108,6 +108,11 @@ export const sync = {
   async send(to, body) { await rpc("fap_send", { p_token: token, p_to: to, p_body: body }); await sync.inbox(); },
   personId: () => meta.person_id,
 
+  // assistant
+  async ask(topic, body, share) { await sync.push(); return rpc("fap_ask", { p_token: token, p_topic: topic, p_body: body, p_share: share }); },
+  async myQuestions() { if (!token) return []; return rpc("fap_my_questions", { p_token: token }); },
+  async teamQuestions() { if (!token || meta.role !== "coach") return []; return rpc("fap_team_questions", { p_token: token }); },
+
   signOut() { token = null; meta = {}; try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(META_KEY); } catch {} emit(); },
 };
 

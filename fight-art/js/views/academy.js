@@ -3,6 +3,7 @@ import { esc, icon, openSheet, closeSheet, toast } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
 import { frDate } from "../engine.js";
+import { openExplorer, editSystem, systemTree, drillSystem } from "./systems.js";
 
 const moveLabel = (id) => MOVES.find((m) => m.id === id)?.label || id;
 const moveName = (id) => MOVES.find((m) => m.id === id)?.name || id;
@@ -20,6 +21,7 @@ export function renderAcademy(el, ctx) {
   const st = store.get();
   const combos = st.combos || [];
   const scouts = st.scouting || [];
+  const systems = st.systems || [];
 
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 4px">Academy</h1>
@@ -32,6 +34,16 @@ export function renderAcademy(el, ctx) {
         <div class="row" style="gap:6px;flex:none"><button class="icon-btn" data-drill="${c.id}" aria-label="Driller ${esc(c.name)}">${icon("play")}</button><button class="icon-btn" data-edit="${c.id}" aria-label="Modifier">${icon("edit")}</button></div>
       </li>`).join("")}</ul>` : `<p class="muted small" style="margin:0 0 4px">Note les enchaînements qui marchent pour toi, puis drille-les au minuteur. Ton coach les voit aussi.</p>`}
       <button class="btn tape-btn block" data-newcombo style="margin-top:12px">${icon("plus")} Noter un combo</button>
+    </section>
+
+    <h2 class="h-sec">Systèmes offensifs et défensifs</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Pour chaque technique : ce qu'elle ouvre, ce à quoi elle t'expose, et ta réponse quand l'adversaire contre. Construis tes schémas à partir de là.</p>
+      <button class="btn tape-btn block" data-explore>${icon("search")} Risques et ouvertures des techniques</button>
+      ${systems.length ? `<div class="stack" style="margin-top:12px">${systems.map((x) => `<details class="sys-card"><summary><span><b>${esc(x.name)}</b><span class="tiny muted" style="display:block">${x.type === "off" ? "Offensif" : "Défensif"} · ${x.branches.length} branche${x.branches.length > 1 ? "s" : ""}</span></span></summary>
+        ${systemTree(x)}
+        <div class="row" style="margin-top:10px"><button class="btn small" data-drillsys="${x.id}">${icon("play")} Driller</button><button class="btn ghost small" data-editsys="${x.id}">Modifier</button></div></details>`).join("")}</div>` : ""}
+      <button class="btn ghost block" data-newsys style="margin-top:10px">${icon("plus")} Créer un système</button>
     </section>
 
     <h2 class="h-sec">Étudier le combat</h2>
@@ -51,6 +63,10 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => editCombo(combos.find((c) => c.id === b.dataset.edit), ctx.refresh)));
   el.querySelectorAll("[data-drill]").forEach((b) => b.addEventListener("click", () => drillCombo(combos.find((c) => c.id === b.dataset.drill))));
   el.querySelectorAll("[data-mod]").forEach((li) => li.addEventListener("click", () => openModule(li.dataset.mod, ctx)));
+  el.querySelector("[data-explore]").addEventListener("click", () => openExplorer(null, ctx.refresh));
+  el.querySelector("[data-newsys]").addEventListener("click", () => editSystem(null, ctx.refresh, { root: "double", type: "off" }));
+  el.querySelectorAll("[data-editsys]").forEach((b) => b.addEventListener("click", () => editSystem(systems.find((x) => x.id === b.dataset.editsys), ctx.refresh)));
+  el.querySelectorAll("[data-drillsys]").forEach((b) => b.addEventListener("click", () => drillSystem(systems.find((x) => x.id === b.dataset.drillsys))));
   el.querySelector("[data-newscout]").addEventListener("click", () => editScout(null, ctx.refresh));
   el.querySelectorAll("[data-scout]").forEach((li) => li.addEventListener("click", () => editScout(scouts.find((s) => s.id === li.dataset.scout), ctx.refresh)));
 }

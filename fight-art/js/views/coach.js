@@ -3,6 +3,8 @@ import { fmt, readiness, alerts, weeklyLoad, findClass, frDate, isMinor } from "
 import { todayKey, addDays } from "../store.js";
 import { LEVELS } from "../data.js";
 import { sync } from "../sync.js";
+import { TOPICS, fmtAnswer } from "./assistant.js";
+import { systemTree } from "./systems.js";
 
 // Exemple affiché tant qu'aucune équipe n'est reliée.
 const SAMPLE = [
@@ -94,11 +96,20 @@ function openFighter(f, live) {
     ${(f.st?.combos || []).length ? `<h3 class="h-sec" style="font-size:18px">Ses combos fétiches</h3><ul class="list">${f.st.combos.map((c) => `<li><div><div style="font-weight:650">${esc(c.name)}</div><div class="meta">${esc(c.seq.join(" · "))}${c.when ? " — " + esc(c.when) : ""}</div></div></li>`).join("")}</ul>` : ""}
     ${f.weights?.length > 1 ? `<h3 class="h-sec" style="font-size:18px">Poids</h3>${sparkline(f.weights.slice(-30).map((x) => ({ v: x.kg })), { unit: " kg" })}` : ""}
     ${f.lastSeen ? `<p class="hint">Dernière ouverture de l'appli : ${esc(new Date(f.lastSeen).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))}</p>` : ""}
+    ${(f.st?.systems || []).length ? `<h3 class="h-sec" style="font-size:18px">Ses systèmes</h3>${f.st.systems.map((x) => `<details class="sys-card" style="margin-top:8px"><summary><b>${esc(x.name)}</b></summary>${systemTree(x)}</details>`).join("")}` : ""}
+    <div data-qs></div>
     <form data-msg style="margin-top:14px">
       <label class="field"><span>Message à ${esc(f.name.split(" ")[0])}</span><textarea class="input" name="body" rows="3" placeholder="Ex. On allège demain, viens me voir avant le cours."></textarea></label>
       <button class="btn block" style="margin-top:10px" ${live ? "" : "disabled"}>Envoyer</button>
       ${live ? "" : `<p class="hint">L'envoi de messages marche avec tes vrais fighters.</p>`}
     </form>`);
+  if (live && f.id) sync.teamQuestions().then((all) => {
+    const qs = all.filter((q) => q.person_id === f.id).slice(0, 10);
+    const box = body.querySelector("[data-qs]"); if (!box || !qs.length) return;
+    box.innerHTML = `<h3 class="h-sec" style="font-size:18px">Ses questions à l'assistant</h3>` + qs.map((q) => `<section class="panel" style="margin-top:8px">
+      <div class="row between"><span class="badge tiny">${esc(TOPICS.find((t) => t.id === q.topic)?.label || q.topic)}</span><span class="tiny muted">${esc(new Date(q.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }))}</span></div>
+      <p class="small" style="margin:8px 0">${esc(q.body)}</p>${q.answer ? `<div class="answer small">${fmtAnswer(q.answer)}</div>` : `<p class="tiny muted">En attente de réponse</p>`}</section>`).join("");
+  }).catch(() => {});
   body.querySelector("[data-msg]").addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = e.target.body.value.trim(); if (!text || !live) return;

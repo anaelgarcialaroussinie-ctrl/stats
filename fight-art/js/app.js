@@ -7,6 +7,7 @@ import { renderTraining } from "./views/training.js";
 import { renderProgress } from "./views/progress.js";
 import { renderCoach } from "./views/coach.js";
 import { renderAcademy } from "./views/academy.js";
+import { renderAssistant } from "./views/assistant.js";
 import { LEVELS, DAYS } from "./data.js";
 import { isMinor, findClass } from "./engine.js";
 import { sync } from "./sync.js";
@@ -55,16 +56,16 @@ function render(keepScroll = false) {
     return;
   }
   const tabs = tabsFor(p);
-  if (!tabs.find((t) => t.id === current)) current = "today";
-  const tab = tabs.find((t) => t.id === current);
+  if (current !== "assistant" && !tabs.find((t) => t.id === current)) current = "today";
+  const tab = current === "assistant" ? { render: renderAssistant } : tabs.find((t) => t.id === current);
   const y = window.scrollY;
   app.innerHTML = `
     <main class="screen">
       <header class="topbar">
         <div class="brand"><span class="brand-mark" aria-hidden="true">FA</span><span>Fight Art Performance</span></div>
-        <button class="avatar" data-profile aria-label="Mon profil">${esc(initials(p.name))}</button>
+        <div class="row" style="gap:8px"><button class="icon-btn" data-assistant aria-label="Assistant" style="background:var(--tape);color:var(--tape-ink)">${icon("chat")}</button><button class="avatar" data-profile aria-label="Mon profil">${esc(initials(p.name))}</button></div>
       </header>
-      ${window.FAP_PREVIEW ? `<p class="notice is-warn small" style="margin-bottom:14px">Aperçu : le scan, la recherche d'aliments et l'installation sur l'écran d'accueil fonctionnent dans la version en ligne de l'appli.</p>` : ""}
+      ${window.FAP_PREVIEW ? `<p class="notice is-warn small" style="margin-bottom:14px">Aperçu de démonstration : le scan, la recherche d'aliments, l'équipe et l'assistant fonctionnent dans la version en ligne de l'appli.</p>` : ""}
       <div data-view></div>
     </main>
     <nav class="tabbar" aria-label="Navigation"><div class="tabbar-inner" style="--tabs:${tabs.length}">
@@ -74,6 +75,7 @@ function render(keepScroll = false) {
   params = {};
   app.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => ctx.go(b.dataset.tab)));
   app.querySelector("[data-profile]").addEventListener("click", openProfile);
+  app.querySelector("[data-assistant]").addEventListener("click", () => ctx.go("assistant"));
   window.scrollTo(0, keepScroll ? y : 0);
 }
 

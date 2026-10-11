@@ -383,3 +383,26 @@ label.field > span { display: block; font-size: 14px; font-weight: 600; margin-b
 .timer-full.work { background: var(--tape); color: var(--tape-ink); }
 .tab[aria-current="page"] svg { color: var(--tape-ink); }
 .tab span { white-space: nowrap; }
+
+.answer { border-left: 4px solid var(--tape); background: var(--surface-2); border-radius: 0 var(--r-md) var(--r-md) 0; padding: 12px 14px; font-size: 15px; }
+.answer p { margin: 0 0 8px; } .answer p:last-child { margin: 0; }
+.assist-cta { cursor: pointer; color: inherit; font: inherit; }
+
+/* systèmes */
+.sys-h { margin: 18px 0 8px; font-size: 15px; font-weight: 700; color: var(--muted); }
+.risk { border: 1px solid var(--line); border-left: 4px solid var(--bad); border-radius: 0 var(--r-md) var(--r-md) 0; padding: 10px 12px; margin-top: 8px; background: var(--surface); }
+.open-chip { border-color: var(--tape); }
+.risk-chip { border-color: var(--bad); }
+.link { background: none; border: 0; padding: 0; color: var(--tape); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.tree { position: relative; padding-left: 4px; }
+.tree .node { border-radius: 12px; padding: 9px 12px; font-size: 14px; border: 1px solid var(--line); background: var(--surface-2); }
+.tree .node.root { background: var(--tape); color: var(--tape-ink); border-color: var(--tape); }
+.tree .branch { position: relative; margin: 10px 0 0 18px; padding-left: 14px; border-left: 2px solid var(--line); display: grid; gap: 6px; }
+.tree .branch::before { content: ""; position: absolute; left: -2px; top: -10px; height: 10px; border-left: 2px solid var(--line); }
+.tree .node.them { border-color: var(--bad); }
+.tree .node.me { border-color: var(--tape); }
+.sys-card { border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; background: var(--surface-2); }
+.sys-card summary { cursor: pointer; list-style: none; }
+.sys-card summary::-webkit-details-marker { display: none; }
+.sys-card[open] summary { margin-bottom: 10px; }
+input[type="checkbox"], input[type="range"] { accent-color: var(--tape); }

@@ -61,6 +61,9 @@ export function renderToday(el, ctx) {
     ${alertsHtml}
     ${advice ? `<div class="stack" style="margin-bottom:6px">${advice}</div>` : ""}
     ${compet}
+    <button class="panel row between assist-cta" data-act="assistant" style="width:100%;text-align:left;margin-top:12px">
+      <div><div style="font-weight:700">Un blocage, une question ?</div><div class="muted small">Technique, peur, nutrition, prépa, mental : parle à l'assistant.</div></div>
+      <span class="icon-btn" style="background:var(--tape);color:var(--tape-ink);flex:none">${icon("chat")}</span></button>
     <h2 class="h-sec">Programme du jour</h2>
     <section class="panel"><ol class="plan">${items}</ol></section>
     <h2 class="h-sec">Nutrition</h2>
@@ -72,6 +75,7 @@ export function renderToday(el, ctx) {
 
   el.querySelector("[data-act=reply]")?.addEventListener("click", () => openThread(lastMsg.from_id, lastMsg.from_name, ctx));
   el.querySelectorAll("[data-act=checkin]").forEach((b) => b.addEventListener("click", () => openCheckin(key, ctx.refresh)));
+  el.querySelector("[data-act=assistant]").addEventListener("click", () => ctx.go("assistant"));
   el.querySelector("[data-act=food]")?.addEventListener("click", () => ctx.go("food", { add: true }));
   el.querySelectorAll("[data-block]").forEach((b) => b.addEventListener("click", () => {
     const block = plan.blocks.find((x) => x.id === b.dataset.block);
