@@ -54,6 +54,13 @@ export function renderAcademy(el, ctx) {
       <ul class="list">${MODULES.map((m) => `<li role="button" tabindex="0" data-mod="${m.id}"><div><div style="font-weight:700">${esc(m.title)}</div><div class="meta">${esc(m.text)}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>
     </section>
 
+    <h2 class="h-sec">Vidéothèque du club</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Les vidéos choisies par le coach. Pour chacune : regarde, isole le geste en drill, teste-le en sparring à thème, puis en sparring libre, et note ce qui a marché.</p>
+      <div data-links><p class="muted small">${sync.connected() && !window.FAP_PREVIEW ? "Chargement…" : "Relie ton téléphone à l'équipe pour voir la vidéothèque."}</p></div>
+      ${sync.role() === "coach" ? `<button class="btn ghost block" data-addlink style="margin-top:10px">${icon("plus")} Ajouter une vidéo</button>` : ""}
+    </section>
+
     ${sync.role() === "coach" ? `<h2 class="h-sec">Ma formation vidéo</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Certification Luta Livre de Nicolas Renier : les 85 vidéos rangées par module, avec tes notes. Visible par toi seul.</p>
@@ -77,6 +84,8 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-editsys]").forEach((b) => b.addEventListener("click", () => editSystem(systems.find((x) => x.id === b.dataset.editsys), ctx.refresh)));
   el.querySelectorAll("[data-drillsys]").forEach((b) => b.addEventListener("click", () => drillSystem(systems.find((x) => x.id === b.dataset.drillsys))));
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
+  el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));
+  drawLinks(el, ctx);
   el.querySelector("[data-newscout]").addEventListener("click", () => editScout(null, ctx.refresh));
   el.querySelectorAll("[data-scout]").forEach((li) => li.addEventListener("click", () => editScout(scouts.find((s) => s.id === li.dataset.scout), ctx.refresh)));
 }
@@ -186,6 +195,58 @@ function openLuta() {
       ${GLOSSARY.map((g) => `<p class="small" style="margin:8px 0"><b>${esc(g.term)}</b> : ${esc(g.def)}</p>`).join("")}
     </details>
     <p class="hint">Les clés de jambes de la Luta Livre (one leg, 50/50, K-guard, false reap) sont dans « Risques et ouvertures des techniques ». La clé de talon est réservée aux adultes avancés.</p>`);
+}
+
+// ---------- vidéothèque du club ----------
+let linksCache = null;
+const LINK_TOPICS = ["MMA", "Frappe", "Lutte", "Sol", "Luta Livre", "Drill solo", "Prépa physique", "Mental", "Analyse de combat"];
+async function drawLinks(el, ctx) {
+  const box = el.querySelector("[data-links]");
+  if (!box || !sync.connected() || window.FAP_PREVIEW) return;
+  const paint = (rows) => {
+    if (!el.contains(box)) return;
+    if (!rows.length) { box.innerHTML = `<p class="muted small">Aucune vidéo pour l'instant.</p>`; return; }
+    const topics = [...new Set(rows.map((r) => r.topic))];
+    const coach = sync.role() === "coach";
+    box.innerHTML = topics.map((t) => `<div class="tiny muted" style="margin:10px 0 4px;font-weight:700">${esc(t)}</div>
+      <ul class="list">${rows.filter((r) => r.topic === t).map((r) => `<li><div style="min-width:0"><div style="font-weight:700">${esc(r.title)}</div>${r.note ? `<div class="meta">${esc(r.note)}</div>` : ""}</div>
+        <div class="row" style="gap:6px;flex:none"><a class="icon-btn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Voir ${esc(r.title)}">${icon("play")}</a>${coach ? `<button class="icon-btn" data-editlink="${r.id}" aria-label="Modifier">${icon("edit")}</button>` : ""}</div></li>`).join("")}</ul>`).join("");
+    box.querySelectorAll("[data-editlink]").forEach((b) => b.addEventListener("click", () => editLink(rows.find((r) => r.id === b.dataset.editlink), ctx.refresh)));
+  };
+  if (linksCache) paint(linksCache);
+  try { linksCache = await sync.links(); paint(linksCache); }
+  catch { if (!linksCache) box.innerHTML = `<p class="notice is-warn small">Impossible de charger la vidéothèque. Vérifie ta connexion.</p>`; }
+}
+
+function editLink(existing, after) {
+  const l = existing ? { ...existing } : { title: "", url: "", topic: "MMA", note: "" };
+  const body = openSheet(existing ? "Modifier la vidéo" : "Ajouter une vidéo", `
+    <form class="stack" data-f>
+      <label class="field"><span>Lien (YouTube, Instagram…)</span><input class="input" name="url" type="url" inputmode="url" required value="${esc(l.url)}" placeholder="https://youtu.be/…"></label>
+      <label class="field"><span>Titre</span><input class="input" name="title" required maxlength="200" value="${esc(l.title)}" placeholder="Ex. Jeff Chan : défendre le low kick"></label>
+      <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Thème</span><div class="chips">${LINK_TOPICS.map((t) => `<button type="button" class="chip" data-topic="${esc(t)}" aria-pressed="${t === l.topic}">${esc(t)}</button>`).join("")}</div></div>
+      <label class="field"><span>À retenir (visible par les fighters)</span><textarea class="input" name="note" rows="4" maxlength="2000" placeholder="Le point clé, l'erreur à éviter, le drill à faire.">${esc(l.note)}</textarea></label>
+      <button class="btn tape-btn block">Enregistrer</button>
+      ${existing ? `<button type="button" class="btn ghost block" data-archive style="color:var(--bad)">Retirer de la vidéothèque</button>` : ""}
+    </form>`);
+  body.addEventListener("click", async (e) => {
+    const t = e.target.closest("[data-topic]");
+    if (t) { l.topic = t.dataset.topic; body.querySelectorAll("[data-topic]").forEach((b) => b.setAttribute("aria-pressed", b === t)); return; }
+    const a = e.target.closest("[data-archive]");
+    if (a) {
+      if (!a.dataset.armed) { a.dataset.armed = "1"; a.textContent = "Confirmer le retrait"; return; }
+      try { await sync.saveLink({ ...l, archived: true }); linksCache = null; closeSheet(); toast("Vidéo retirée"); after?.(); } catch { toast("Impossible : vérifie ta connexion"); }
+    }
+  });
+  body.querySelector("[data-f]").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target, el2 = f.elements; l.url = el2.url.value.trim(); l.title = el2.title.value.trim(); l.note = el2.note.value.trim();
+    if (!/^https:\/\//.test(l.url)) { toast("Le lien doit commencer par https://"); return; }
+    if (!l.title) { toast("Donne un titre à la vidéo"); return; }
+    const btn = f.querySelector(".tape-btn"); btn.disabled = true; btn.textContent = "Enregistrement…";
+    try { await sync.saveLink(l); linksCache = null; closeSheet(); toast("Vidéo enregistrée"); after?.(); }
+    catch { btn.disabled = false; btn.textContent = "Enregistrer"; toast("Impossible : vérifie ta connexion"); }
+  });
 }
 
 // ---------- formation vidéo du coach (privée, chargée depuis la base) ----------

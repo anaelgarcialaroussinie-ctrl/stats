@@ -402,3 +402,5 @@ label.field > span { display: block; font-size: 14px; font-weight: 600; margin-b
 .sys-card summary::-webkit-details-marker { display: none; }
 .sys-card[open] summary { margin-bottom: 10px; }
 input[type="checkbox"], input[type="range"] { accent-color: var(--tape); }
+
+a.icon-btn { color: var(--ink); text-decoration: none; }
