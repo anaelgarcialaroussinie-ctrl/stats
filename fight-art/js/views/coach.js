@@ -91,6 +91,7 @@ function openFighter(f, live) {
       <div class="panel"><div class="muted tiny">Sparring dur</div><div class="display num" style="font-size:34px">${f.sparring}</div><div class="tiny muted">séances sur 7 jours</div></div>
     </div>
     ${f.alert ? `<p class="notice is-alert" style="margin-top:12px">${esc(f.alert)}</p>` : ""}
+    ${(f.st?.combos || []).length ? `<h3 class="h-sec" style="font-size:18px">Ses combos fétiches</h3><ul class="list">${f.st.combos.map((c) => `<li><div><div style="font-weight:650">${esc(c.name)}</div><div class="meta">${esc(c.seq.join(" · "))}${c.when ? " — " + esc(c.when) : ""}</div></div></li>`).join("")}</ul>` : ""}
     ${f.weights?.length > 1 ? `<h3 class="h-sec" style="font-size:18px">Poids</h3>${sparkline(f.weights.slice(-30).map((x) => ({ v: x.kg })), { unit: " kg" })}` : ""}
     ${f.lastSeen ? `<p class="hint">Dernière ouverture de l'appli : ${esc(new Date(f.lastSeen).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))}</p>` : ""}
     <form data-msg style="margin-top:14px">

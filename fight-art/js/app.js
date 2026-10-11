@@ -6,6 +6,7 @@ import { renderNutrition } from "./views/nutrition.js";
 import { renderTraining } from "./views/training.js";
 import { renderProgress } from "./views/progress.js";
 import { renderCoach } from "./views/coach.js";
+import { renderAcademy } from "./views/academy.js";
 import { LEVELS, DAYS } from "./data.js";
 import { isMinor, findClass } from "./engine.js";
 import { sync } from "./sync.js";
@@ -15,7 +16,8 @@ const app = document.getElementById("app");
 const TABS = [
   { id: "today", label: "Aujourd'hui", icon: "today", render: renderToday },
   { id: "food", label: "Nutrition", icon: "food", render: renderNutrition },
-  { id: "train", label: "Entraînement", icon: "train", render: renderTraining },
+  { id: "train", label: "Séances", icon: "train", render: renderTraining },
+  { id: "academy", label: "Academy", icon: "academy", render: renderAcademy },
   { id: "progress", label: "Progrès", icon: "progress", render: renderProgress },
   { id: "team", label: "Équipe", icon: "team", render: renderCoach, coach: true },
 ];

@@ -7,19 +7,20 @@
 }
 
 :root {
-  --concrete: #E6E7E3;
-  --surface: #F7F7F4;
-  --surface-2: #EEEFEB;
-  --ink: #17191C;
-  --muted: #5E636B;
-  --line: #D3D5CF;
-  --tape: #F2C12E;
-  --tape-ink: #1E1A0C;
-  --mat: #2C5E8F;
-  --good: #2E8B57;
-  --warn: #C9771F;
-  --bad: #C8412F;
-  --shadow-sheet: 0 -12px 40px rgba(23, 25, 28, .18);
+  /* Marque FIGHT ART : noir et vert lime. Un seul thème, assumé. */
+  --concrete: #000000;
+  --surface: #121212;
+  --surface-2: #1D1D1D;
+  --ink: #F3F4EF;
+  --muted: #9A9C96;
+  --line: #2A2B28;
+  --tape: #B9F650;
+  --tape-ink: #0A0A0A;
+  --mat: #B9F650;
+  --good: #5CCB7E;
+  --warn: #F0A23B;
+  --bad: #F2604B;
+  --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, .7);
   --r-lg: 20px;
   --r-md: 14px;
   --r-sm: 10px;
@@ -27,39 +28,8 @@
   --tabbar: 64px;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
-  color-scheme: light;
+  color-scheme: dark;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --concrete: #121416;
-    --surface: #1C1F22;
-    --surface-2: #24282C;
-    --ink: #ECEDEA;
-    --muted: #9AA0A6;
-    --line: #30353A;
-    --mat: #79A9DA;
-    --good: #4FB37B;
-    --warn: #E3963E;
-    --bad: #E26A57;
-    --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, .5);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-    --concrete: #121416;
-    --surface: #1C1F22;
-    --surface-2: #24282C;
-    --ink: #ECEDEA;
-    --muted: #9AA0A6;
-    --line: #30353A;
-    --mat: #79A9DA;
-    --good: #4FB37B;
-    --warn: #E3963E;
-    --bad: #E26A57;
-    --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, .5);
-    color-scheme: dark;
-  }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -127,7 +97,7 @@ p { margin: 0 0 10px; }
 }
 .brand-mark {
   width: 30px; height: 30px; border-radius: 8px;
-  background: #17191C; color: var(--tape);
+  background: var(--tape); color: var(--tape-ink);
   display: grid; place-items: center;
   font-weight: 900; font-size: 13px; font-stretch: 62%; font-variation-settings: "wdth" 62;
 }
@@ -403,3 +373,13 @@ label.field > span { display: block; font-size: 14px; font-weight: 600; margin-b
 }
 
 .grid2 > .panel, .grid3 > .panel { margin-top: 0; }
+
+/* Academy */
+.seq { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.mv { display: inline-block; padding: 3px 9px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.bul { margin: 4px 0 0; padding-left: 18px; font-size: 14px; }
+.bul li { margin: 2px 0; }
+@media (max-width: 420px) { .zone-grid { grid-template-columns: 1fr; } }
+.timer-full.work { background: var(--tape); color: var(--tape-ink); }
+.tab[aria-current="page"] svg { color: var(--tape-ink); }
+.tab span { white-space: nowrap; }

@@ -10,6 +10,8 @@ const empty = () => ({
   weights: [],            // [ {date, kg} ]
   tests: [],              // [ {date, id, value} ]
   lifts: {},              // { exId: derniere charge de travail kg }
+  combos: [],             // combos fétiches (Academy)
+  scouting: [],           // fiches adversaires et game plans
 });
 
 let state = load();
