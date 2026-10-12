@@ -1,5 +1,5 @@
 import { store, todayKey } from "./store.js";
-import { esc, icon, openSheet, closeSheet, toast, initials, avatarHtml, squarePhoto, cropImage } from "./ui.js";
+import { esc, icon, openSheet, closeSheet, toast, initials, avatarHtml, squarePhoto, cropImage, openCropper } from "./ui.js";
 import { profileCard, badgePicker, MAX_BADGES } from "./views/identity.js";
 import { openModelSearch } from "./views/models.js";
 import { renderOnboarding } from "./views/onboarding.js";
@@ -148,11 +148,13 @@ function openProfile() {
   };
   body.querySelector("[data-photo]").addEventListener("change", async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    try { setImg("photo", await squarePhoto(file), "Photo enregistrée"); } catch { toast("Image illisible : essaie une autre photo"); }
+    const v = await openCropper(file, { w: 256, h: 256, round: true, title: "Ajuster ma photo", quality: 0.82 });
+    if (v) setImg("photo", v, "Photo enregistrée"); else openProfile();
   });
   body.querySelector("[data-banner]").addEventListener("change", async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    try { setImg("banner", await cropImage(file, 720, 240, 0.72), "Bannière enregistrée"); } catch { toast("Image illisible : essaie une autre image"); }
+    const v = await openCropper(file, { w: 720, h: 240, title: "Ajuster ma bannière", quality: 0.72 });
+    if (v) setImg("banner", v, "Bannière enregistrée"); else openProfile();
   });
   body.querySelector("[data-photo-del]")?.addEventListener("click", () => setImg("photo", "", "Photo retirée"));
   body.querySelector("[data-banner-del]")?.addEventListener("click", () => setImg("banner", "", "Bannière retirée"));
@@ -231,7 +233,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "14";
+const APP_VERSION = "15";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});

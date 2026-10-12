@@ -93,6 +93,50 @@ export async function cropImage(file, w, h, quality = 0.8) {
 }
 export const squarePhoto = (file, size = 256) => cropImage(file, size, size, 0.82);
 
+// recadrage manuel : on déplace l'image avec le doigt et on zoome, puis on valide
+export function openCropper(file, { w, h, round = false, title = "Ajuster l'image", quality = 0.8 } = {}) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; URL.revokeObjectURL(url); resolve(v); };
+    const body = openSheet(title, `
+      <p class="muted small">Fais glisser l'image pour la placer, et zoome avec le curseur.</p>
+      <div class="crop-frame${round ? " is-round" : ""}" style="aspect-ratio:${w}/${h}"><img alt="" draggable="false"></div>
+      <label class="field" style="margin-top:12px"><span>Zoom</span><input type="range" min="1" max="3" step="0.01" value="1" data-zoom></label>
+      <div class="row" style="gap:8px;margin-top:14px"><button type="button" class="btn ghost" data-cancel>Annuler</button><button type="button" class="btn tape-btn block" data-ok>Valider</button></div>`,
+      { close: () => finish(null) });
+    const frame = body.querySelector(".crop-frame"), img = frame.querySelector("img");
+    let iw = 0, ih = 0, base = 1, zoom = 1, x = 0, y = 0;
+    const FW = () => frame.clientWidth, FH = () => frame.clientHeight;
+    const clamp = () => { const sc = base * zoom; x = Math.min(0, Math.max(FW() - iw * sc, x)); y = Math.min(0, Math.max(FH() - ih * sc, y)); };
+    const paint = () => { clamp(); const sc = base * zoom; img.style.width = `${iw * sc}px`; img.style.height = `${ih * sc}px`; img.style.transform = `translate(${x}px, ${y}px)`; };
+    img.onload = () => {
+      iw = img.naturalWidth; ih = img.naturalHeight;
+      base = Math.max(FW() / iw, FH() / ih);
+      x = (FW() - iw * base) / 2; y = (FH() - ih * base) / 2; paint();
+    };
+    img.onerror = () => { toast("Image illisible : essaie une autre image"); closeSheet(); };
+    img.src = url;
+    let drag = null;
+    frame.addEventListener("pointerdown", (e) => { drag = { px: e.clientX, py: e.clientY, x, y }; frame.setPointerCapture(e.pointerId); });
+    frame.addEventListener("pointermove", (e) => { if (!drag) return; x = drag.x + e.clientX - drag.px; y = drag.y + e.clientY - drag.py; paint(); });
+    const stop = () => { drag = null; };
+    frame.addEventListener("pointerup", stop); frame.addEventListener("pointercancel", stop);
+    body.querySelector("[data-zoom]").addEventListener("input", (e) => {
+      const old = base * zoom, cx = (FW() / 2 - x) / old, cy = (FH() / 2 - y) / old;
+      zoom = Number(e.target.value); const sc = base * zoom;
+      x = FW() / 2 - cx * sc; y = FH() / 2 - cy * sc; paint();
+    });
+    body.querySelector("[data-cancel]").addEventListener("click", () => { finish(null); closeSheet(); });
+    body.querySelector("[data-ok]").addEventListener("click", () => {
+      const sc = base * zoom;
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, -x / sc, -y / sc, FW() / sc, FH() / sc, 0, 0, w, h);
+      finish(c.toDataURL("image/jpeg", quality));
+    });
+  });
+}
+
 export function initials(name = "") {
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
