@@ -1,7 +1,7 @@
-import { store, todayKey } from "../store.js";
+import { store, todayKey, addDays, dayIndex } from "../store.js";
 import { esc, icon, openSheet, closeSheet, segBar, bindSeg } from "../ui.js";
-import { weekPlan, dayPlan, fmt, isMinor } from "../engine.js";
-import { DRILL_GROUPS, DRILL_FORMATS, STRENGTH, LEVELS, DAYS } from "../data.js";
+import { weekPlan, dayPlan, fmt, isMinor, strengthDays } from "../engine.js";
+import { DRILL_GROUPS, DRILL_FORMATS, STRENGTH, LEVELS, DAYS, DAYS_LONG } from "../data.js";
 import { runTimer } from "./timer.js";
 import { openBlock, openLog } from "./sessions.js";
 import { guideInline } from "../drill-guides.js";
@@ -34,6 +34,9 @@ export function renderTraining(el, ctx) {
       const ex = { ...EX[id], inc: EX[id]?.inc };
       return `<li><div><div style="font-weight:650">${esc(ex?.name || id)}</div><div class="meta">${l.allDone ? "Toutes les séries réussies : +" + (ex?.inc || 0) + " kg la prochaine fois" : "On garde la charge"}</div></div><div class="right"><b>${fmt(l.kg, 1)} kg</b>${l.e1rm ? `<div class="meta">max estimé ${fmt(l.e1rm)} kg</div>` : ""}</div></li>`;
     }).join("")}</ul></section>`;
+  // les séances de prépa de la semaine, ouvrables n'importe quel jour
+  const monday = addDays(key, -dayIndex(key));
+  const scWeek = [...Array(7)].map((_, di) => { const k = addDays(monday, di); const b = dayPlan(p, k, st).blocks.find((x) => x.type === "strength" || x.type === "recovery"); return b ? { di, key: k, block: b } : null; }).filter(Boolean);
   const seg = segBar("seances", [["club", "Club"], ["prepa", "Prépa physique"], ["tech", "Technique"]], "club");
   const seasonCardT = seasonCard(key, p);
   el.innerHTML = `
@@ -47,7 +50,16 @@ export function renderTraining(el, ctx) {
     <button class="panel row between" data-planning style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Planning du club</div><div class="muted small">Horaires, contenu des cours, programme de la saison et thème de la semaine</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
     </div>
     <div data-seg="prepa">
-    ${strength ? `<section class="panel row between" style="margin-top:14px"><div><div style="font-weight:700">${esc(strength.title)}</div><div class="muted small">${esc(strength.detail)}</div></div><button class="btn small" data-strength>Ouvrir</button></section>` : ""}
+    <h2 class="h-sec">Ma semaine de prépa</h2>
+    <section class="panel">
+      ${scWeek.length ? `<ul class="list">${scWeek.map((x, i) => `<li><div style="min-width:0"><div style="font-weight:700">${esc(DAYS_LONG[x.di][0].toUpperCase() + DAYS_LONG[x.di].slice(1))}${x.key === key ? ` <span class="insigne">aujourd'hui</span>` : ""}</div><div class="meta">${esc(x.block.title.replace("Prépa physique · ", ""))} · ${esc(x.block.detail)}</div></div><button class="btn small" data-scopen="${i}" style="flex:none">Ouvrir</button></li>`).join("")}</ul>`
+        : `<p class="muted small" style="margin:0">${p.competitionDate && strengthDays(p, key) && !Object.keys(strengthDays(p, key)).length ? "Dernière semaine avant ton combat : pas de séance de force, place à l'affûtage." : "Aucun jour de prépa choisi : coche tes jours ci-dessous."}</p>`}
+      <h3 class="sys-h" style="margin-top:12px">Mon programme sur mesure</h3>
+      <div class="tiny muted" style="margin-bottom:6px">Mes jours de prépa (1 jour : force · 2 jours : force + volume · 3 jours : force, vitesse, volume)</div>
+      <div class="chips">${DAYS.map((d, i) => `<button type="button" class="chip" data-scday="${i}" aria-pressed="${(p.scDays || []).includes(i)}">${d}</button>`).join("")}</div>
+      ${isMinor(p) ? `<p class="tiny muted" style="margin:8px 0 0">Version poids du corps (moins de 18 ans).</p>` : `<div class="tiny muted" style="margin:10px 0 6px">Où je m'entraîne</div><div class="chips"><button type="button" class="chip" data-scequip="gym" aria-pressed="${p.equipment !== "home"}">En salle</button><button type="button" class="chip" data-scequip="home" aria-pressed="${p.equipment === "home"}">À la maison</button></div>`}
+      <p class="hint">Chaque séance s'adapte aussi à ton check-in du matin, à tes zones fragiles, à tes tests et à ta date de combat.</p>
+    </section>
 
 
     <h2 class="h-sec">Prépa physique</h2>
@@ -93,7 +105,9 @@ export function renderTraining(el, ctx) {
   el.querySelector("[data-planning]").addEventListener("click", () => openPlanning());
   el.querySelector("[data-videocoach]").addEventListener("click", () => openVideoCoach(ctx.refresh));
   el.querySelectorAll("[data-prehab]").forEach((b) => b.addEventListener("click", () => openPrehab(b.dataset.prehab, ctx.refresh)));
-  el.querySelector("[data-strength]")?.addEventListener("click", () => openBlock(key, strength, ctx.refresh, ctx.go));
+  el.querySelectorAll("[data-scopen]").forEach((b) => b.addEventListener("click", () => { const x = scWeek[Number(b.dataset.scopen)]; openBlock(x.key, x.block, ctx.refresh, ctx.go); }));
+  el.querySelectorAll("[data-scday]").forEach((b) => b.addEventListener("click", () => { const i = Number(b.dataset.scday); store.update((s2) => { const d = s2.profile.scDays || []; s2.profile.scDays = d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort(); }); ctx.refresh(); }));
+  el.querySelectorAll("[data-scequip]").forEach((b) => b.addEventListener("click", () => { store.update((s2) => { s2.profile.equipment = b.dataset.scequip; }); ctx.refresh(); }));
   el.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {
     const f = DRILL_FORMATS.find((x) => x.id === b.dataset.timer);
     runTimer({ ...f, title: f.label });
