@@ -20,11 +20,17 @@ export function readiness(c) {
   const sore = (5 - c.soreness) / 4;
   const mood = (c.mood - 1) / 4;
   let score = Math.round(100 * (0.25 * sleepH + 0.15 * sleepQ + 0.25 * energy + 0.15 * sore + 0.2 * mood));
+  // montre : FC de repos nettement au-dessus de sa moyenne, ou VFC nettement en dessous = fatigue, stress ou début de maladie possibles
+  const hrUp = c.hr && c.hrBase && c.hr - c.hrBase >= 7;
+  const hrvDown = c.hrv && c.hrvBase && c.hrv <= c.hrvBase * 0.8;
+  if (hrUp) score -= 8;
+  if (hrvDown) score -= 8;
+  score = clamp(score, 0, 100);
   const painHigh = c.pain && Number(c.painLevel) >= 5;
   if (painHigh) score = Math.min(score, 59);
   const level = score >= 70 ? "good" : score >= 50 ? "warn" : "bad";
   const label = { good: "Prêt", warn: "À doser", bad: "Récupération" }[level];
-  return { score, level, label, painHigh };
+  return { score, level, label, painHigh, hrUp, hrvDown };
 }
 
 export function readinessAdvice(r, c) {
@@ -34,6 +40,7 @@ export function readinessAdvice(r, c) {
   if (r.level === "warn") out.push("Séance allégée : 3 séries au lieu de 5, charges 10 % plus légères, pas de sparring dur.");
   if (r.level === "bad") out.push("Journée récupération : mobilité, marche, technique légère. Pas de force ni de sparring.");
   if (c?.pain) out.push(`Douleur signalée (${(c.painZones || []).join(", ") || "zone non précisée"}) : on évite cette zone aujourd'hui. Si elle dure plus de quelques jours, parles-en au coach et à un kiné ou un médecin.`);
+  if (r.hrUp || r.hrvDown) out.push(`Ta montre signale un corps moins récupéré que d'habitude (${[r.hrUp ? `FC repos ${c.hr} bpm, ta moyenne ${c.hrBase}` : "", r.hrvDown ? `VFC ${c.hrv} ms, ta moyenne ${c.hrvBase}` : ""].filter(Boolean).join(" · ")}). Si ça dure 2 à 3 jours ou avec fièvre ou gorge irritée : repos et parles-en au coach.`);
   if (Number(c?.sleepH) < 7) out.push("Moins de 7 h de sommeil : une sieste de 20 à 30 minutes en début d'après-midi aide, sans remplacer la nuit.");
   return out;
 }
@@ -44,6 +51,8 @@ export function alerts(state = store.get(), from = todayKey()) {
   const last = [0, 1, 2].map((i) => state.checkins[addDays(from, -i)]).filter(Boolean);
   if (last.length === 3 && last.every((c) => readiness(c).level === "bad")) out.push({ level: "bad", text: "3 jours d'affilée en récupération. Le coach est prévenu : on fait le point." });
   if (last.length === 3 && last.every((c) => c.mood <= 2)) out.push({ level: "warn", text: "Moral bas depuis 3 jours. Parles-en à ton coach ou à un proche. En cas de détresse, le 3114 répond 24 h/24." });
+  const flags = [0, 1, 2].map((i) => state.checkins[addDays(from, -i)]).filter(Boolean).map((x) => readiness(x)).filter((x) => x.hrUp || x.hrvDown);
+  if (flags.length >= 2) out.push({ level: "warn", text: "Fréquence cardiaque de repos ou VFC hors de sa moyenne depuis plusieurs matins : à surveiller." });
   const load = weeklyLoad(state, from);
   if (load.prev > 0 && load.week > load.prev * 1.3) out.push({ level: "warn", text: "Charge en forte hausse par rapport à la semaine dernière (+" + Math.round((load.week / load.prev - 1) * 100) + " %). Attention au surmenage." });
   if (load.monotony > 2) out.push({ level: "warn", text: "Semaine très monotone : prévois de vrais jours légers." });

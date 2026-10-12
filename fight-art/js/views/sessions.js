@@ -1,5 +1,5 @@
 // Feuilles de séance partagées : check-in, mobilité, force, séance club, RPE.
-import { store, todayKey, uid } from "../store.js";
+import { store, todayKey, uid, addDays } from "../store.js";
 import { STRENGTH, MOBILITY, MOVEMENT, PAIN_ZONES } from "../data.js";
 import { EX, SUBS, PREHAB, WARMUP, PAIN_RULE, scPhase } from "../sc-data.js";
 import { computeQualities } from "../qualities.js";
@@ -22,6 +22,9 @@ export function openCheckin(key = todayKey(), after) {
   const prev = store.get().checkins[key];
   const c = prev ? { ...prev } : { sleepH: 7.5, sleepQ: 3, fatigue: 2, soreness: 2, mood: 4, pain: false, painZones: [], painLevel: 3, cycle: "" };
   const p = store.get().profile;
+  const lastW = [...(store.get().weights || [])].filter((w) => w.date <= key).sort((a, b) => a.date.localeCompare(b.date)).pop();
+  if (c.kg === undefined) c.kg = (store.get().weights || []).find((w) => w.date === key)?.kg ?? "";
+  const base = watchBaseline(key);
   const body = openSheet("Check-in du matin", `
     <form data-ci class="stack">
       <label class="field"><span>Heures de sommeil</span>
@@ -36,6 +39,19 @@ export function openCheckin(key = todayKey(), after) {
         <div class="chips">${PAIN_ZONES.map((z) => `<button type="button" class="chip" data-zone="${esc(z)}" aria-pressed="${c.painZones.includes(z)}">${esc(z)}</button>`).join("")}</div>
         <label class="field"><span>Intensité de la douleur : <b data-out="painLevel">${c.painLevel}</b> / 10</span><input type="range" min="1" max="10" name="painLevel" value="${c.painLevel}" style="width:100%"></label>
       </div>
+      <div class="panel" style="padding:12px">
+        <div class="row between"><span class="small" style="font-weight:700">Pesée du matin</span><span class="tiny muted">${lastW && lastW.date !== key ? `dernière : ${fmt(lastW.kg, 1)} kg` : ""}</span></div>
+        <label class="field" style="margin-top:6px"><span class="tiny muted">À jeun, après être passé aux toilettes, toujours sur la même balance</span>
+          <div class="row"><input class="input num" name="kg" inputmode="decimal" placeholder="${lastW ? fmt(lastW.kg, 1) : "Ex. 72,4"}" value="${c.kg === "" ? "" : fmt(c.kg, 1)}" style="flex:1"><b>kg</b></div></label>
+      </div>
+      <div class="panel" style="padding:12px">
+        <div class="row between"><span class="small" style="font-weight:700">Ma montre (facultatif)</span><button type="button" class="btn ghost small" data-watch>${icon("plus")} Importer</button></div>
+        <div class="grid2" style="margin-top:6px">
+          <label class="field"><span class="tiny muted">FC au repos</span><div class="row"><input class="input num" name="hr" inputmode="numeric" value="${c.hr ?? ""}" placeholder="${base.hr ? Math.round(base.hr) : "Ex. 55"}"><b class="tiny">bpm</b></div></label>
+          <label class="field"><span class="tiny muted">VFC (HRV)</span><div class="row"><input class="input num" name="hrv" inputmode="numeric" value="${c.hrv ?? ""}" placeholder="${base.hrv ? Math.round(base.hrv) : "Ex. 60"}"><b class="tiny">ms</b></div></label>
+        </div>
+        <p class="hint" style="margin:4px 0 0">${base.n >= 5 ? `Ta moyenne habituelle : ${base.hr ? Math.round(base.hr) + " bpm" : ""}${base.hr && base.hrv ? " · " : ""}${base.hrv ? Math.round(base.hrv) + " ms" : ""}.` : "Après 5 matins renseignés, l'appli compare chaque matin à ta moyenne habituelle."} <a href="#" data-howwatch>Relier ma montre</a></p>
+      </div>
       ${p?.sex === "F" && p?.trackCycle ? `<label class="field"><span>Cycle (facultatif)</span><select class="input" name="cycle"><option value="">Ne pas renseigner</option><option value="regles" ${c.cycle === "regles" ? "selected" : ""}>Règles</option><option value="autre" ${c.cycle === "autre" ? "selected" : ""}>Autre phase</option></select></label>` : ""}
       <button class="btn tape-btn block">Valider mon check-in</button>
     </form>`);
@@ -45,10 +61,19 @@ export function openCheckin(key = todayKey(), after) {
     if (t.name === "sleepH") { c.sleepH = Number(t.value); form.querySelector('[data-out="sleepH"]').textContent = fmt(c.sleepH, 1) + " h"; }
     if (t.name === "painLevel") { c.painLevel = Number(t.value); form.querySelector('[data-out="painLevel"]').textContent = t.value; }
     if (t.name === "cycle") c.cycle = t.value;
+    if (["kg", "hr", "hrv"].includes(t.name)) { const v = Number(String(t.value).replace(",", ".")); c[t.name] = t.value.trim() === "" || !isFinite(v) ? (t.name === "kg" ? "" : undefined) : v; }
   });
-  form.addEventListener("click", (e) => {
+  form.addEventListener("click", async (e) => {
+    if (e.target.closest("[data-howwatch]")) { e.preventDefault(); openWatchHelp(); return; }
     const b = e.target.closest("button[type=button]");
     if (!b) return;
+    if (b.dataset.watch !== undefined) {
+      const got = await readWatchClipboard();
+      if (!got) { toast("Rien à importer : lance d'abord le raccourci « Fight Art montre »"); return; }
+      for (const k of ["hr", "hrv", "kg"]) if (got[k] !== undefined) { c[k] = got[k]; const inp = form.querySelector(`[name="${k}"]`); if (inp) inp.value = k === "kg" ? fmt(got[k], 1) : Math.round(got[k]); }
+      toast("Données de la montre importées");
+      return;
+    }
     if (b.dataset.scale) {
       c[b.dataset.scale] = Number(b.dataset.v);
       form.querySelectorAll(`[data-scale="${b.dataset.scale}"]`).forEach((x) => x.setAttribute("aria-pressed", x === b));
@@ -66,12 +91,60 @@ export function openCheckin(key = todayKey(), after) {
   });
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    store.update((s) => { s.checkins[key] = { ...c, at: new Date().toISOString() }; });
+    const kg = Number(c.kg);
+    if (c.kg !== "" && (!isFinite(kg) || kg < 25 || kg > 250)) { toast("Vérifie ton poids"); return; }
+    if (c.hr !== undefined && (c.hr < 25 || c.hr > 140)) { toast("Vérifie ta fréquence cardiaque au repos"); return; }
+    if (c.hrv !== undefined && (c.hrv < 5 || c.hrv > 300)) { toast("Vérifie ta variabilité cardiaque"); return; }
+    if (base.n >= 5) { c.hrBase = base.hr ? Math.round(base.hr) : undefined; c.hrvBase = base.hrv ? Math.round(base.hrv) : undefined; }
+    store.update((s) => {
+      s.checkins[key] = { ...c, at: new Date().toISOString() };
+      if (c.kg !== "" && isFinite(kg)) { s.weights = (s.weights || []).filter((w) => w.date !== key); s.weights.push({ date: key, kg }); if (key >= ((s.weights || []).map((w) => w.date).sort().pop() || "")) s.profile.weight = kg; }
+    });
     const r = readiness(c);
     closeSheet();
     toast(`Check-in enregistré · forme ${r.score}/100`);
     after?.();
   });
+}
+
+// moyenne des 30 derniers matins (FC repos, VFC) : la référence de chacun
+function watchBaseline(key) {
+  const st = store.get();
+  const prev = Object.entries(st.checkins || {}).filter(([d]) => d < key && d >= addDays(key, -30)).map(([, x]) => x);
+  const avg = (k) => { const v = prev.map((x) => Number(x[k])).filter((x) => x > 0); return v.length >= 5 ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  return { hr: avg("hr"), hrv: avg("hrv"), n: Math.max(prev.filter((x) => x.hr).length, prev.filter((x) => x.hrv).length) };
+}
+
+// le raccourci iPhone copie une ligne « FA hr=52 hrv=61 kg=72.4 » dans le presse-papiers
+async function readWatchClipboard() {
+  let txt = "";
+  try { txt = await navigator.clipboard.readText(); } catch { return null; }
+  if (!/FA/i.test(txt)) return null;
+  const num = (k) => { const m = txt.match(new RegExp(k + "\\s*[=:]\\s*([0-9]+(?:[.,][0-9]+)?)", "i")); return m ? Number(m[1].replace(",", ".")) : undefined; };
+  const out = { hr: num("hr"), hrv: num("hrv"), kg: num("kg") };
+  if (out.hr === undefined && out.hrv === undefined && out.kg === undefined) return null;
+  if (out.kg !== undefined) out.kg = Math.round(out.kg * 10) / 10;
+  return out;
+}
+
+export function openWatchHelp() {
+  openSheet("Relier ma montre", `
+    <p class="small" style="margin-top:0">Une appli web ne peut pas lire Santé directement. La solution : un raccourci iPhone qui récupère tes chiffres du matin dans Santé, puis un bouton « Importer » dans ton check-in. Ça marche avec toutes les montres qui envoient leurs données dans Santé (Apple Watch, Garmin, Polar, Withings, Fitbit, Coros, Whoop…) et avec les balances connectées.</p>
+    <h3 class="sys-h">Créer le raccourci (une seule fois, 3 minutes)</h3>
+    <ol class="bul small" style="padding-left:18px">
+      <li>Ouvre l'app <b>Raccourcis</b> → <b>+</b> → nomme-le <b>Fight Art montre</b>.</li>
+      <li>Ajoute l'action <b>Rechercher des échantillons de santé</b> : type <b>Fréquence cardiaque au repos</b>, trier par <b>Date de début</b>, ordre <b>Plus récent d'abord</b>, limite <b>1</b>.</li>
+      <li>Ajoute <b>Obtenir les détails des échantillons de santé</b> → <b>Valeur</b>.</li>
+      <li>Refais les étapes 2 et 3 pour <b>Variabilité du rythme cardiaque</b>, puis pour <b>Poids</b> (si tu as une balance connectée).</li>
+      <li>Ajoute <b>Texte</b> et écris : <b>FA hr=</b>[valeur 1] <b>hrv=</b>[valeur 2] <b>kg=</b>[valeur 3], en insérant les valeurs avec les variables.</li>
+      <li>Ajoute <b>Copier dans le presse-papiers</b>, puis <b>Afficher une notification</b> : « Ouvre Fight Art et importe ».</li>
+    </ol>
+    <h3 class="sys-h">Chaque matin</h3>
+    <ol class="bul small" style="padding-left:18px">
+      <li>Lance le raccourci (widget, Siri « Fight Art montre », ou une automatisation à ton heure de réveil).</li>
+      <li>Ouvre l'appli → check-in → <b>Importer</b> (autorise le collage si l'iPhone le demande).</li>
+    </ol>
+    <p class="hint">Sans raccourci, tu peux aussi recopier les deux chiffres affichés par ta montre. Prends-les toujours au réveil, avant de te lever : c'est la comparaison avec ta propre moyenne qui compte, pas le chiffre seul.</p>`);
 }
 
 // ---------- RPE ----------
