@@ -2,6 +2,7 @@
 // Rien n'est envoyé en ligne : l'appli lit les fichiers sur place (Chrome ou Edge sur ordinateur).
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { myNote, studyNotes } from "../study-notes.js";
+import { store } from "../store.js";
 
 const VIDEO = /\.(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|flv|ts)$/i;
 const PLAYABLE = /\.(mp4|m4v|mov|webm|mkv)$/i;
@@ -80,7 +81,7 @@ export function openLocalVideos() {
   };
   const load = async () => {
     body.innerHTML = intro + `<p class="muted small" data-prog>Lecture du disque dur…</p>`;
-    try { files = (await scan(root, (n) => { const p = body.querySelector("[data-prog]"); if (p) p.textContent = `Lecture du disque dur… ${n} vidéos trouvées`; })).filter((f) => !f.path.startsWith("Fiches Fight Art/")); fiches = await loadFiches(root); }
+    try { files = (await scan(root, (n) => { const p = body.querySelector("[data-prog]"); if (p) p.textContent = `Lecture du disque dur… ${n} vidéos trouvées`; })).filter((f) => !f.path.startsWith("Fiches Fight Art/")); fiches = { ...(store.get().localFiches || {}), ...(await loadFiches(root)) }; }
     catch { files = []; toast("Impossible de lire ce dossier : le disque est-il bien branché ?"); }
     draw();
   };
