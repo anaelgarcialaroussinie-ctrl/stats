@@ -1,6 +1,7 @@
 // Feuilles de séance partagées : check-in, mobilité, force, séance club, RPE.
 import { store, todayKey, uid } from "../store.js";
 import { STRENGTH, MOBILITY, MOVEMENT, PAIN_ZONES } from "../data.js";
+import { EX, SUBS, PREHAB, WARMUP, PAIN_RULE, scPhase } from "../sc-data.js";
 import { esc, icon, openSheet, closeSheet, toast, scale } from "../ui.js";
 import { readiness, readinessAdvice, suggestedLoad, isMinor, fmt, brzycki } from "../engine.js";
 import { guideInline } from "../drill-guides.js";
@@ -122,57 +123,121 @@ export function openRoutine(key, block, after) {
   });
 }
 
-// ---------- force ----------
+// ---------- force et explosivité (version MMA, adaptée aux blessures) ----------
+const daysTo = (p, key) => (p?.competitionDate ? Math.round((new Date(p.competitionDate + "T12:00:00") - new Date(key + "T12:00:00")) / 86400000) : null);
+
+// construit la séance du jour : remplace les exercices qui sollicitent une zone douloureuse ou fragile
+export function buildStrength(p, st, key, block) {
+  const S = STRENGTH[block.kind];
+  const home = p.equipment === "home" || isMinor(p);
+  const base = home ? S.home : S.gym;
+  const c = st.checkins[key];
+  const acute = c?.pain ? (c.painZones || []) : [];
+  const chronic = p.injuries || [];
+  const zones = [...new Set([...acute, ...chronic])];
+  const phase = scPhase(daysTo(p, key));
+  const changes = [];
+  const resolve = (item, section) => {
+    const ex = EX[item.id];
+    const hit = zones.find((z) => ex.zones.includes(z));
+    let out = { ...item, ex };
+    if (hit) {
+      const subId = SUBS[hit]?.[item.id];
+      const sub = subId && EX[subId];
+      if (sub && !sub.zones.some((z) => zones.includes(z))) { out = { ...item, id: subId, ex: sub, adapted: `${ex.name} remplacé (${hit.toLowerCase()})` }; changes.push(`${ex.name} → ${sub.name} (${hit.toLowerCase()})`); }
+      else { changes.push(`${ex.name} retiré (${hit.toLowerCase()})`); return null; }
+    }
+    let sets = out.sets;
+    if (section === "strength" && block.mode === "light") sets = Math.min(sets, 3);
+    if (section === "strength" && phase.id === "power") sets = Math.max(2, sets - 1);
+    if (section !== "strength" && block.mode === "light") sets = Math.max(2, sets - 1);
+    return { ...out, sets };
+  };
+  const sections = [
+    { key: "power", title: "1 · Explosivité", hint: "Système nerveux frais : chaque répétition à 100 % de vitesse, repos complet.", items: base.power.map((i) => resolve(i, "power")).filter(Boolean) },
+    { key: "strength", title: "2 · Force", hint: block.kind === "vitesse" ? "Charges modérées, vitesse maximale. La série s'arrête quand la vitesse baisse." : "Garde 2 répétitions en réserve. Technique parfaite avant la charge.", items: base.strength.map((i) => resolve(i, "strength")).filter(Boolean) },
+    { key: "mma", title: "3 · Spécifique MMA", hint: "Nuque, grip, tronc, adducteurs, ischio-jambiers : ce qui protège et ce qui sert au combat.", items: base.mma.map((i) => resolve(i, "mma")).filter(Boolean) },
+  ];
+  const prev = zones.filter((z) => PREHAB[z]).slice(0, 2);
+  if (prev.length) sections.push({ key: "prehab", title: "4 · Prévention ciblée", hint: `Pour ${prev.map((z) => z.toLowerCase()).join(" et ")}.`, items: prev.flatMap((z) => PREHAB[z].items.slice(0, 2).map(([name, dose]) => ({ id: null, name, dose, zone: z }))) });
+  const hard = c?.pain && Number(c.painLevel) >= 5;
+  return { S, home, sections, changes, zones, phase, hard, acute };
+}
+
 export function openStrength(key, block, after) {
   const st = store.get();
   const p = st.profile;
-  const home = p.equipment === "home" || isMinor(p);
-  const S = STRENGTH[block.kind];
-  const list = home ? S.home : S.gym;
-  const sets = block.mode === "light" ? 3 : null;
+  const B = buildStrength(p, st, key, block);
+  const { S, home } = B;
   const log = {};
-  list.forEach((ex) => { log[ex.id] = { kg: suggestedLoad(ex, st, block.mode) ?? st.lifts?.[ex.id]?.kg ?? "", sets: Array(sets || ex.sets).fill(false) }; });
+  const all = B.sections.flatMap((sec) => sec.items.filter((i) => i.id).map((i) => ({ ...i, sec: sec.key })));
+  all.forEach((i) => { log[i.id] = { kg: i.ex.load && !home ? (suggestedLoad({ id: i.id, inc: i.ex.inc }, st, block.mode) ?? st.lifts?.[i.id]?.kg ?? "") : "", sets: Array(i.sets).fill(false) }; });
   let rpe = 7;
 
-  const exHtml = (ex) => {
-    const L = log[ex.id];
-    const sug = suggestedLoad(ex, st, block.mode);
-    return `<div class="ex" data-ex="${ex.id}">
-      <div class="ex-head"><span class="ex-name">${esc(ex.name)}</span><span class="ex-presc">${sets || ex.sets} × ${ex.reps}${ex.note ? " · " + esc(ex.note) : ""}</span></div>
-      <div class="tiny muted">Repos ${esc(ex.rest)}${sug ? ` · charge proposée ${fmt(sug, 1)} kg` : home ? "" : ` · première fois : monte progressivement jusqu'à la charge que tu fais ${ex.reps} fois proprement`}</div>
-      ${home ? "" : `<div class="row" style="margin-top:8px"><input class="input num" style="max-width:120px;min-height:40px" inputmode="decimal" data-kg="${ex.id}" value="${L.kg}" placeholder="kg"><span class="tiny muted">kg de travail</span></div>`}
-      <div class="sets">${L.sets.map((_, i) => `<button type="button" class="set" data-set="${ex.id}:${i}" aria-pressed="false">Série ${i + 1}</button>`).join("")}</div>
+  const exHtml = (i) => {
+    if (!i.id) return `<div class="ex"><div class="ex-head"><span class="ex-name">${esc(i.name)}</span><span class="ex-presc">${esc(i.dose)}</span></div>${guideInline(i.name)}</div>`;
+    const L = log[i.id]; const loaded = i.ex.load && !home;
+    const sug = loaded ? suggestedLoad({ id: i.id, inc: i.ex.inc }, st, block.mode) : null;
+    return `<div class="ex" data-ex="${i.id}">
+      <div class="ex-head"><span class="ex-name">${esc(i.ex.name)}</span><span class="ex-presc">${i.sets} × ${esc(String(i.reps))}</span></div>
+      <div class="tiny muted">Repos ${esc(i.rest)}${i.note ? " · " + esc(i.note) : ""}${loaded ? (sug ? ` · charge proposée ${fmt(sug, 1)} kg` : " · première fois : monte progressivement jusqu'à une charge propre et rapide") : ""}</div>
+      ${i.adapted ? `<div class="tiny" style="color:var(--warn);margin-top:2px">Adapté : ${esc(i.adapted)}</div>` : ""}
+      ${guideInline(i.ex.name)}
+      ${loaded ? `<div class="row" style="margin-top:8px"><input class="input num" style="max-width:120px;min-height:40px" inputmode="decimal" data-kg="${i.id}" value="${L.kg}" placeholder="kg"><span class="tiny muted">kg de travail</span></div>` : ""}
+      <div class="sets">${L.sets.map((_, k) => `<button type="button" class="set" data-set="${i.id}:${k}" aria-pressed="false">Série ${k + 1}</button>`).join("")}</div>
     </div>`;
   };
 
   const body = openSheet(`Prépa physique · ${S.title}`, `
-    <p class="muted">${esc(S.why)}${block.mode === "light" ? " Version allégée aujourd'hui : 3 séries, charges −10 %." : ""}${p.level === 1 ? " Niveau Fondations : descente lente, pause en bas, montée explosive, technique parfaite avant la charge." : ""}</p>
-    <div class="panel" style="padding:4px 16px;margin-top:10px">${list.map(exHtml).join("")}</div>
-    <div class="panel" style="margin-top:12px"><h3>Cardio de fin de séance</h3><p class="muted small" style="margin-top:4px">Rameur, ski erg ou vélo : 3 × 5 min sur le rythme d'un combat, 1 min de repos.</p></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="badge tiny">${esc(S.focus)}</span><span class="badge tiny">Phase : ${esc(B.phase.label)}</span>${home ? `<span class="badge tiny">Version maison</span>` : ""}</div>
+    <p class="muted small" style="margin-top:8px">${esc(S.why)}${block.mode === "light" ? " Forme moyenne aujourd'hui : séries réduites, charges −10 %." : ""}${p.level === 1 ? " Niveau Fondations : technique parfaite avant la charge, descente contrôlée, montée explosive." : ""}</p>
+    ${B.phase.id !== "dev" ? `<p class="notice small">${esc(B.phase.text)}</p>` : ""}
+    ${B.changes.length ? `<div class="notice is-warn small"><b>Séance adaptée à ${esc(B.zones.map((z) => z.toLowerCase()).join(", "))}</b><ul class="bul" style="margin-top:6px">${B.changes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${B.hard ? `<p class="notice is-alert small">Douleur (${esc(B.acute.join(", ").toLowerCase())}) notée ce matin à 5 sur 10 ou plus : si elle persiste plus de quelques jours, va voir un kiné ou un médecin.</p>` : ""}
+    <div class="panel small" style="margin-top:10px;padding:12px"><b>Échauffement</b> · ${esc(WARMUP)}</div>
+    ${B.sections.map((sec) => sec.items.length ? `<h3 class="sys-h">${esc(sec.title)}</h3><p class="tiny muted" style="margin:0 0 6px">${esc(sec.hint)}</p><div class="panel" style="padding:4px 16px">${sec.items.map(exHtml).join("")}</div>` : "").join("")}
+    ${block.kind === "volume" ? `<div class="panel" style="margin-top:12px"><h3>Cardio de fin de séance</h3><p class="muted small" style="margin-top:4px">Rameur, ski erg ou vélo : 3 × 5 min au rythme d'un combat, 1 min de repos. Les jours lourd et rapide, pas de cardio long juste après : il réduit les gains de force et de puissance.</p></div>` : ""}
+    <p class="hint">${esc(PAIN_RULE)}</p>
     <div style="margin-top:16px"><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Intensité ressentie de la séance</span>${rpePicker(rpe)}</div>
     <button class="btn tape-btn block" data-finish style="margin-top:16px">Terminer la séance</button>`);
 
   body.addEventListener("input", (e) => { const id = e.target.dataset.kg; if (id) log[id].kg = e.target.value; });
   body.addEventListener("click", (e) => {
     const s = e.target.closest("[data-set]");
-    if (s) { const [id, i] = s.dataset.set.split(":"); log[id].sets[i] = !log[id].sets[i]; s.setAttribute("aria-pressed", log[id].sets[i]); }
+    if (s) { const [id, k] = s.dataset.set.split(":"); log[id].sets[k] = !log[id].sets[k]; s.setAttribute("aria-pressed", log[id].sets[k]); }
     const r = e.target.closest("[data-rpe]");
     if (r) { rpe = Number(r.dataset.rpe); body.querySelectorAll("[data-rpe]").forEach((x) => x.setAttribute("aria-pressed", x === r)); }
     if (e.target.closest("[data-finish]")) {
       store.update((s2) => {
         s2.lifts ||= {};
-        list.forEach((ex) => {
-          const L = log[ex.id]; const kg = Number(String(L.kg).replace(",", "."));
+        all.forEach((i) => {
+          const L = log[i.id]; const kg = Number(String(L.kg).replace(",", "."));
           if (kg > 0) {
             const allDone = L.sets.every(Boolean);
             const kgBase = block.mode === "light" ? kg / 0.9 : kg; // on garde la référence pleine charge
-            s2.lifts[ex.id] = { kg: kgBase, allDone: allDone && block.mode !== "light", rpe, date: key, e1rm: brzycki(kg, ex.reps) };
+            const reps = Number(i.reps);
+            s2.lifts[i.id] = { kg: kgBase, allDone: allDone && block.mode !== "light", rpe, date: key, e1rm: reps ? brzycki(kg, reps) : null };
           }
         });
       });
       markDone(key, block.id, { title: `Prépa physique · ${S.title}`, type: "strength", minutes: 60, rpe });
       closeSheet(); toast("Séance de force enregistrée"); after?.();
     }
+  });
+}
+
+// ---------- programme de prévention par zone ----------
+export function openPrehab(zone, after) {
+  const P = PREHAB[zone];
+  const body = openSheet(`Renforcer : ${zone.toLowerCase()}`, `
+    <p class="small">${esc(P.why)}</p>
+    <div class="panel" style="padding:4px 16px;margin-top:10px">${P.items.map(([n, d]) => `<div class="ex"><div class="ex-head"><span class="ex-name">${esc(n)}</span><span class="ex-presc">${esc(d)}</span></div>${guideInline(n)}</div>`).join("")}</div>
+    <p class="hint">${esc(PAIN_RULE)}</p>
+    <p class="hint">À faire 2 à 3 fois par semaine, en fin d'entraînement ou les jours sans prépa physique. Douleur importante, gonflement ou instabilité : avis médical d'abord.</p>
+    <button class="btn tape-btn block" data-done style="margin-top:12px">C'est fait</button>`);
+  body.querySelector("[data-done]").addEventListener("click", () => {
+    store.update((s) => { const day = ensureDay(s, todayKey()); day.logs = [...day.logs, { id: `prehab-${zone}-${Date.now()}`, at: new Date().toISOString(), title: `Prévention · ${zone}`, type: "prehab", minutes: 12, rpe: 3 }]; });
+    closeSheet(); toast("Prévention notée"); after?.();
   });
 }
 

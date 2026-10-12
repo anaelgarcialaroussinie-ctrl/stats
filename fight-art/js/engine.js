@@ -105,11 +105,12 @@ export function dayPlan(p, key = todayKey(), state = store.get()) {
   if (kind) {
     const s = STRENGTH[kind];
     let title = `Prépa physique · ${s.title}`;
-    let detail = p.equipment === "home" || minor ? "Version maison, poids du corps" : "Salle · 3 exercices de base + bonus";
+    const inj = [...new Set([...(p.injuries || []), ...(c?.pain ? c.painZones || [] : [])])];
+    let detail = `${s.focus} · ${p.equipment === "home" || minor ? "version maison" : "en salle"}${inj.length ? ` · adaptée (${inj.join(", ").toLowerCase()})` : ""}`;
     let mode = "normal";
     if (r?.level === "warn") { mode = "light"; detail = "Version allégée · 3 séries, charges −10 %"; }
     if (r?.level === "bad") { mode = "skip"; title = "Récupération active"; detail = "Marche 20 à 30 min, mobilité, respiration"; }
-    if (p.level === 1 && mode === "normal") detail = "Apprentissage des mouvements · charges légères, technique parfaite";
+    if (p.level === 1 && mode === "normal") detail += " · apprentissage : technique avant la charge";
     blocks.push({ id: "strength", type: mode === "skip" ? "recovery" : "strength", kind, mode, title, detail, minutes: mode === "skip" ? 30 : 60 });
   }
 

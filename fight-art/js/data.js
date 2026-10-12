@@ -60,57 +60,8 @@ export const classesOn = (p, di) => (p?.classes || []).map((id) => CLUB_CLASSES.
 export const hm = (t) => t.replace(":", "h");
 export const clubDaysOf = (p) => (p?.classes?.length ? [...new Set(p.classes.map((id) => CLUB_CLASSES.find((c) => c.id === id)?.day).filter((d) => d !== undefined))] : p?.clubDays || []);
 
-// Séances de force : modèle ondulatoire du coach (lourd / rapide / volume)
-export const STRENGTH = {
-  force: {
-    title: "Lourd",
-    why: "Jour lourd : on soulève les charges les plus lourdes de la semaine.",
-    gym: [
-      { id: "deadlift", name: "Soulevé de terre", sets: 5, reps: 5, rest: "2-4 min", inc: 5 },
-      { id: "bench", name: "Développé couché", sets: 5, reps: 5, rest: "60-90 s en superset", inc: 2.5, superset: "row" },
-      { id: "row", name: "Tirage haltère", sets: 5, reps: 8, rest: "60-90 s en superset", inc: 1 },
-      { id: "clean", name: "Power clean (ou kettlebell swing)", sets: 5, reps: 5, rest: "2 min", inc: 2.5 },
-    ],
-    home: [
-      { id: "h_split", name: "Squat bulgare", sets: 5, reps: 8, rest: "90 s", note: "Par jambe, lent à la descente" },
-      { id: "h_pushup", name: "Pompes lestées ou déclinées", sets: 5, reps: 8, rest: "60 s" },
-      { id: "h_pull", name: "Tractions (ou rowing sous une table)", sets: 5, reps: 6, rest: "90 s" },
-      { id: "h_jump", name: "Sauts groupés", sets: 5, reps: 5, rest: "90 s", note: "Récupération complète" },
-    ],
-  },
-  vitesse: {
-    title: "Rapide",
-    why: "Jour léger : charges plus faibles, mouvements rapides, moins de fatigue.",
-    gym: [
-      { id: "squat", name: "Squat", sets: 5, reps: 5, rest: "2-4 min", inc: 5 },
-      { id: "latpull", name: "Tirage poulie haute", sets: 5, reps: 8, rest: "30-90 s en superset", inc: 2.5, superset: "incline" },
-      { id: "incline", name: "Développé incliné", sets: 5, reps: 8, rest: "30-90 s en superset", inc: 1 },
-      { id: "core1", name: "Roue abdominale (puis dragon flag)", sets: 3, reps: 10, rest: "60 s" },
-    ],
-    home: [
-      { id: "h_squatjump", name: "Squat sauté", sets: 5, reps: 5, rest: "90 s" },
-      { id: "h_pikepush", name: "Pompes piquées", sets: 4, reps: 8, rest: "60 s" },
-      { id: "h_rowtable", name: "Rowing inversé", sets: 4, reps: 10, rest: "60 s" },
-      { id: "h_hollow", name: "Gainage hollow", sets: 3, reps: 30, rest: "45 s", note: "Secondes" },
-    ],
-  },
-  volume: {
-    title: "Volume",
-    why: "Jour volume : plus de séries pour construire le muscle, avant le week-end de récupération.",
-    gym: [
-      { id: "lunge", name: "Fentes", sets: 5, reps: 10, rest: "2 min", inc: 1 },
-      { id: "barrow", name: "Tirage barre", sets: 6, reps: 5, rest: "30-90 s en superset", inc: 2.5, superset: "dbbench" },
-      { id: "dbbench", name: "Développé couché haltères", sets: 6, reps: 8, rest: "30-90 s en superset", inc: 1 },
-      { id: "rotation", name: "Rotation barre (landmine)", sets: 3, reps: 5, rest: "45 s", note: "Par côté" },
-    ],
-    home: [
-      { id: "h_lunge", name: "Fentes marchées", sets: 5, reps: 12, rest: "60 s" },
-      { id: "h_pushup2", name: "Pompes", sets: 5, reps: 15, rest: "45 s" },
-      { id: "h_pull2", name: "Tractions ou rowing élastique", sets: 5, reps: 8, rest: "60 s" },
-      { id: "h_side", name: "Gainage latéral", sets: 3, reps: 30, rest: "30 s", note: "Secondes par côté" },
-    ],
-  },
-};
+// Séances de force : voir sc-data.js (Lourd / Rapide / Volume, version MMA)
+export { SC_SESSIONS as STRENGTH } from "./sc-data.js";
 
 export const CARDIO = [
   { name: "Rameur, ski erg ou vélo sur la durée d'un combat", detail: "3 × 5 min, 1 min de repos" },
@@ -244,4 +195,4 @@ export const MEALS = [
   { id: "dinner", label: "Dîner" },
 ];
 
-export const PAIN_ZONES = ["Nuque", "Épaule", "Coude", "Main / poignet", "Dos", "Hanche", "Genou", "Cheville / pied", "Côtes"];
+export { ZONES as PAIN_ZONES } from "./sc-data.js";

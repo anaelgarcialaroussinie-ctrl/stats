@@ -498,3 +498,4 @@ table.stats td.num { white-space: nowrap; }
 .faces-row .face:first-child { margin-left: 0; }
 .chip:has(.face) { display: inline-flex; align-items: center; gap: 6px; padding-left: 4px; }
 .chip .face-sm { margin: 0; }
+.ex-presc { white-space: nowrap; }

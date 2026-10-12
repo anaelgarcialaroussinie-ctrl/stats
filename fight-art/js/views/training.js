@@ -5,6 +5,8 @@ import { DRILL_GROUPS, DRILL_FORMATS, STRENGTH, LEVELS, DAYS } from "../data.js"
 import { runTimer } from "./timer.js";
 import { openBlock, openLog } from "./sessions.js";
 import { guideInline } from "../drill-guides.js";
+import { EX, PREHAB, scPhase } from "../sc-data.js";
+import { openPrehab } from "./sessions.js";
 import { openPlanning } from "./planning.js";
 
 const LEVEL_PRIORITIES = {
@@ -23,7 +25,7 @@ export function renderTraining(el, ctx) {
   const strength = plan.blocks.find((b) => b.type === "strength");
   const lv = LEVELS.find((l) => l.id === p.level) || LEVELS[0];
   const lifts = Object.entries(st.lifts || {});
-  const allEx = Object.values(STRENGTH).flatMap((s) => [...s.gym, ...s.home]);
+  const zonesMine = [...new Set([...(p.injuries || []), ...((st.checkins[key]?.pain && st.checkins[key].painZones) || [])])];
 
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 14px">Entraînement</h1>
@@ -33,6 +35,16 @@ export function renderTraining(el, ctx) {
     ${strength ? `<section class="panel row between" style="margin-top:14px"><div><div style="font-weight:700">${esc(strength.title)}</div><div class="muted small">${esc(strength.detail)}</div></div><button class="btn small" data-strength>Ouvrir</button></section>` : ""}
 
     <button class="panel row between" data-planning style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Planning du club</div><div class="muted small">Horaires, contenu des cours et thème de la semaine</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
+
+    <h2 class="h-sec">Prépa physique</h2>
+    <section class="panel">
+      <p class="small" style="margin:0 0 8px">Priorité à la force et à l'explosivité, pas à la musculation. Chaque séance : explosivité, force, spécifique MMA, et prévention ciblée si une zone est fragile. Les exercices qui sollicitent une zone douloureuse sont remplacés automatiquement.</p>
+      <div class="row" style="gap:6px;flex-wrap:wrap"><span class="badge tiny">Lourd : force maximale</span><span class="badge tiny">Rapide : puissance et vitesse</span><span class="badge tiny">Volume : une jambe, structure, prévention</span></div>
+      <p class="tiny muted" style="margin:8px 0 0">Phase actuelle : ${esc(scPhase(p.competitionDate ? Math.round((new Date(p.competitionDate + "T12:00:00") - new Date(key + "T12:00:00")) / 86400000) : null).label)}${zonesMine.length ? ` · zones prises en compte : ${esc(zonesMine.join(", ").toLowerCase())}` : " · aucune zone fragile déclarée (profil)"}</p>
+      <h3 class="sys-h" style="margin-top:12px">Zones à renforcer</h3>
+      <div class="chips">${Object.keys(PREHAB).map((z) => `<button class="chip" data-prehab="${esc(z)}" aria-pressed="${zonesMine.includes(z)}">${esc(z)}</button>`).join("")}</div>
+      <p class="hint">Touche une zone : son programme de renforcement, 10 à 15 minutes, avec les explications et les vidéos.</p>
+    </section>
 
     <h2 class="h-sec">Minuteur de rounds</h2>
     <div class="chips">${DRILL_FORMATS.map((f) => `<button class="chip" data-timer="${f.id}">${esc(f.label)}</button>`).join("")}</div>
@@ -53,12 +65,13 @@ export function renderTraining(el, ctx) {
     </section>
 
     ${lifts.length && !isMinor(p) ? `<h2 class="h-sec">Tes charges</h2><section class="panel"><ul class="list">${lifts.map(([id, l]) => {
-      const ex = allEx.find((e) => e.id === id);
+      const ex = { ...EX[id], inc: EX[id]?.inc };
       return `<li><div><div style="font-weight:650">${esc(ex?.name || id)}</div><div class="meta">${l.allDone ? "Toutes les séries réussies : +" + (ex?.inc || 0) + " kg la prochaine fois" : "On garde la charge"}</div></div><div class="right"><b>${fmt(l.kg, 1)} kg</b>${l.e1rm ? `<div class="meta">max estimé ${fmt(l.e1rm)} kg</div>` : ""}</div></li>`;
     }).join("")}</ul></section>` : ""}
   `;
 
   el.querySelector("[data-planning]").addEventListener("click", () => openPlanning());
+  el.querySelectorAll("[data-prehab]").forEach((b) => b.addEventListener("click", () => openPrehab(b.dataset.prehab, ctx.refresh)));
   el.querySelector("[data-strength]")?.addEventListener("click", () => openBlock(key, strength, ctx.refresh, ctx.go));
   el.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {
     const f = DRILL_FORMATS.find((x) => x.id === b.dataset.timer);

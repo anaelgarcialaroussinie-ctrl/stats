@@ -1,6 +1,7 @@
 // Fiches « comment faire » des drills solo et de la mobilité : étapes, erreurs fréquentes, recherche vidéo.
 // Les vidéos sont proposées via une recherche YouTube ciblée (les liens fixes finissent par disparaître).
 import { esc, icon, openSheet } from "./ui.js";
+import { EX, PREHAB } from "./sc-data.js";
 
 export const GUIDES = {
   // ---- lutte debout
@@ -44,6 +45,10 @@ export const GUIDES = {
   "Jeu de réaction (bâton ou balle)": { steps: ["Un partenaire lâche un bâton ou lance une balle sans prévenir.", "Attrape-le le plus vite possible.", "Varie les mains et les positions."], errors: ["Anticiper au lieu de réagir."], yt: "reaction stick drop drill" },
 };
 
+// exercices de prépa physique et de prévention
+Object.values(EX).forEach((e) => { if (!GUIDES[e.name]) GUIDES[e.name] = { steps: e.steps, errors: e.errors, yt: e.yt }; });
+Object.values(PREHAB).forEach((z) => z.items.forEach(([n, d]) => { if (!GUIDES[n]) GUIDES[n] = { steps: [d], errors: [], yt: n }; }));
+
 export const hasGuide = (name) => Boolean(GUIDES[name]);
 const ytUrl = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
@@ -52,7 +57,7 @@ export function guideInline(name) {
   const g = GUIDES[name]; if (!g) return "";
   return `<details class="guide"><summary>Comment faire ?</summary>
     <ol class="plan-steps">${g.steps.map((x) => `<li class="small">${esc(x)}</li>`).join("")}</ol>
-    <p class="tiny" style="margin:6px 0"><b>À éviter</b> : ${g.errors.map(esc).join(" · ")}</p>
+    ${g.errors.length ? `<p class="tiny" style="margin:6px 0"><b>À éviter</b> : ${g.errors.map(esc).join(" · ")}</p>` : ""}
     <a class="btn small" href="${ytUrl(g.yt)}" target="_blank" rel="noopener">${icon("play")} Voir en vidéo</a>
   </details>`;
 }

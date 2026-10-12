@@ -10,7 +10,7 @@ import { renderProgress } from "./views/progress.js";
 import { renderCoach } from "./views/coach.js";
 import { renderAcademy } from "./views/academy.js";
 import { renderAssistant } from "./views/assistant.js";
-import { LEVELS, DAYS, DAYS_LONG, CLUB_CLASSES, PARCOURS, clubDaysOf, hm } from "./data.js";
+import { LEVELS, DAYS, DAYS_LONG, CLUB_CLASSES, PARCOURS, PAIN_ZONES, clubDaysOf, hm } from "./data.js";
 import { isMinor, findClass } from "./engine.js";
 import { sync } from "./sync.js";
 
@@ -120,6 +120,9 @@ function openProfile() {
         <p class="hint">Choisis ta formule pour cocher ses cours, puis ajuste cours par cours.</p>
         <div data-classes>${classChips()}</div></div>
       <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Jours de préparation physique</span>${dayChips("scDays")}</div>
+      <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Mes zones fragiles (blessures anciennes ou à surveiller)</span>
+        <div class="chips">${PAIN_ZONES.map((z) => `<button type="button" class="chip" data-inj="${esc(z)}" aria-pressed="${(p.injuries || []).includes(z)}">${esc(z)}</button>`).join("")}</div>
+        <p class="hint">La prépa physique remplace les exercices qui sollicitent ces zones et ajoute du renforcement ciblé.</p></div>
       ${p.sex === "F" ? `<label class="row"><input type="checkbox" name="trackCycle" ${p.trackCycle ? "checked" : ""} style="width:22px;height:22px"><span>Suivre mon cycle dans le check-in (facultatif)</span></label>` : ""}
       ${cl ? `<p class="hint">Catégorie estimée : ${esc(cl.label)}${cl.sex === "F" ? " (F)" : ""}, limite ${cl.maxKg} kg.${isMinor(p) ? " Profil mineur : protections activées." : ""}</p>` : ""}
       <button class="btn tape-btn block">Enregistrer</button>
@@ -171,6 +174,8 @@ function openProfile() {
   body.querySelector("[data-models]").addEventListener("click", () => openModelSearch(null, () => {}));
   const f = body.querySelector("[data-prof]");
   f.addEventListener("click", (e) => {
+    const ij = e.target.closest("[data-inj]");
+    if (ij) { const z = ij.dataset.inj; p.injuries = (p.injuries || []).includes(z) ? p.injuries.filter((x) => x !== z) : [...(p.injuries || []), z]; ij.setAttribute("aria-pressed", p.injuries.includes(z)); return; }
     const pc = e.target.closest("[data-parcours]");
     if (pc) { p.classes = [...PARCOURS.find((x) => x.id === pc.dataset.parcours).classes]; f.querySelector("[data-classes]").innerHTML = classChips(); return; }
     const cb = e.target.closest("[data-cls]");
@@ -233,7 +238,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "19";
+const APP_VERSION = "20";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});
