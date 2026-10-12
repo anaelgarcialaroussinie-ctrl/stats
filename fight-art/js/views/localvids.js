@@ -12,7 +12,28 @@ const db = () => new Promise((ok, ko) => { const r = indexedDB.open("fap-local",
 async function saveHandle(h) { const d = await db(); await new Promise((ok, ko) => { const t = d.transaction("h", "readwrite"); try { t.objectStore("h").put(h, "dir"); } catch (e) { ko(e); return; } t.oncomplete = ok; t.onerror = ok; }); }
 async function loadHandle() { try { const d = await db(); return await new Promise((ok) => { const r = d.transaction("h").objectStore("h").get("dir"); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); } catch { return null; } }
 
-let files = [], root = null;
+let files = [], root = null, fiches = {};
+// fiches de travail préparées sur le disque : « Fiches Fight Art/fiches.json » à la racine du dossier choisi
+async function loadFiches(dir) {
+  try {
+    const d = await dir.getDirectoryHandle("Fiches Fight Art");
+    const f = await (await d.getFileHandle("fiches.json")).getFile();
+    return JSON.parse(await f.text()) || {};
+  } catch { return {}; }
+}
+const L = (x) => (Array.isArray(x) ? x : x ? [x] : []).filter(Boolean);
+function ficheHtml(fi) {
+  if (!fi) return "";
+  const list = (t, a) => (L(a).length ? `<h4 class="sys-h">${t}</h4><ul class="bul">${L(a).map((x) => `<li class="small">${esc(String(x))}</li>`).join("")}</ul>` : "");
+  const line = (t, v) => (v ? `<p class="small" style="margin:4px 0"><b>${t}</b> : ${esc(String(v))}</p>` : "");
+  return `<section class="panel" style="margin-top:12px;padding:12px"><div class="tiny" style="font-weight:700;color:var(--tape)">Fiche de travail</div>
+    ${fi.titre ? `<b>${esc(fi.titre)}</b>` : ""}
+    ${fi.depart ? line("Position de départ", fi.depart) : ""}
+    ${list("Points clés", fi.points_cles)}${list("Détails qui font marcher", fi.details)}${list("Erreurs fréquentes", fi.erreurs)}${list("Réactions et réponses", fi.reactions)}
+    ${line("Drill solo", fi.drill_solo)}${line("Drill à deux", fi.drill_deux)}${line("Sparring à thème", fi.sparring)}
+    ${list("Le système", fi.systeme)}
+  </section>`;
+}
 async function scan(dir, onProgress) {
   const out = [];
   async function walk(h, path, depth) {
@@ -32,7 +53,7 @@ const pretty = (n) => n.replace(VIDEO, "").replace(/[_]+/g, " ").replace(/\s+/g,
 export function openLocalVideos() {
   const body = openSheet("Ma vidéothèque privée", "");
   let q = "";
-  const intro = `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par dossier et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : tes notes, et bientôt les fiches de travail.</p>`;
+  const intro = `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par dossier et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : sa fiche de travail (si elle est prête sur le disque) et tes notes.</p>`;
 
   const draw = () => {
     if (!localSupported()) { body.innerHTML = intro + `<p class="notice is-warn small">Ouvre l'appli sur ton ordinateur, dans Chrome ou Edge, avec le disque dur branché. Sur téléphone, les navigateurs ne peuvent pas lire un disque dur. Tes notes, elles, suivent sur tous tes appareils.</p>`; return; }
@@ -43,9 +64,10 @@ export function openLocalVideos() {
     list.forEach((f) => { let g = groups.find((x) => x.folder === f.folder); if (!g) groups.push(g = { folder: f.folder, items: [] }); g.items.push(f); });
     body.innerHTML = intro + `
       <div class="row" style="gap:8px;margin-bottom:10px"><input class="input" data-q placeholder="Rechercher (technique, auteur…)" value="${esc(q)}" style="flex:1"><button class="btn ghost small" data-pick>Changer de dossier</button></div>
-      <p class="tiny muted">${files.length} vidéos dans ${new Set(files.map((f) => f.folder)).size} dossiers${root ? ` · dossier « ${esc(root.name)} »` : ""}</p>
+      <p class="tiny muted">${files.length} vidéos dans ${new Set(files.map((f) => f.folder)).size} dossiers${root ? ` · dossier « ${esc(root.name)} »` : ""} · ${(() => { const n = files.filter((f) => fiches[f.path]).length; return n + (n > 1 ? " fiches prêtes" : " fiche prête"); })()}</p>
       ${groups.slice(0, 200).map((g) => `<details class="sys-card"${q ? " open" : ""}><summary><b>${esc(g.folder.split("/").pop())}</b><span class="tiny muted" style="display:block">${esc(g.folder.includes("/") ? g.folder.split("/").slice(0, -1).join(" › ") + " · " : "")}${g.items.length} vidéo${g.items.length > 1 ? "s" : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></summary>
-        ${g.items.map((i) => `<button class="row between" data-play="${esc(i.path)}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:inherit;padding:10px 0;gap:8px"><span class="small">${esc(pretty(i.name))}${notes[`local:${i.path}`] ? ` <span class="tiny" style="color:var(--tape)">✎</span>` : ""}</span>${icon("play", 'style="width:18px;height:18px;flex:none"')}</button>`).join("")}
+        ${fiches[`${g.folder}/__systeme__`] ? `<details style="margin:6px 0"><summary class="small" style="font-weight:700;cursor:pointer;color:var(--tape)">Fiche système de l'instructional</summary>${ficheHtml(fiches[`${g.folder}/__systeme__`])}</details>` : ""}
+        ${g.items.map((i) => `<button class="row between" data-play="${esc(i.path)}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:inherit;padding:10px 0;gap:8px"><span class="small">${esc(pretty(i.name))}${fiches[i.path] ? ` <span class="insigne">fiche</span>` : ""}${notes[`local:${i.path}`] ? ` <span class="tiny" style="color:var(--tape)">✎</span>` : ""}</span>${icon("play", 'style="width:18px;height:18px;flex:none"')}</button>`).join("")}
       </details>`).join("")}
       <button class="btn ghost block" data-export style="margin-top:14px">Exporter le catalogue (pour préparer les fiches avec Claude)</button>`;
   };
@@ -58,7 +80,7 @@ export function openLocalVideos() {
   };
   const load = async () => {
     body.innerHTML = intro + `<p class="muted small" data-prog>Lecture du disque dur…</p>`;
-    try { files = await scan(root, (n) => { const p = body.querySelector("[data-prog]"); if (p) p.textContent = `Lecture du disque dur… ${n} vidéos trouvées`; }); }
+    try { files = (await scan(root, (n) => { const p = body.querySelector("[data-prog]"); if (p) p.textContent = `Lecture du disque dur… ${n} vidéos trouvées`; })).filter((f) => !f.path.startsWith("Fiches Fight Art/")); fiches = await loadFiches(root); }
     catch { files = []; toast("Impossible de lire ce dossier : le disque est-il bien branché ?"); }
     draw();
   };
@@ -98,6 +120,7 @@ async function playVideo(f, back) {
     <button class="btn ghost small" data-back style="margin-bottom:10px">${icon("back")} Retour à la vidéothèque</button>
     ${PLAYABLE.test(f.name) ? `<video src="${url}" controls playsinline preload="metadata" style="width:100%;border-radius:12px;background:#000"></video>` : `<p class="notice is-warn small">Ce format (${esc(f.name.split(".").pop())}) ne se lit pas dans le navigateur : ouvre-le avec VLC depuis ton disque dur.</p>`}
     <p class="tiny muted" style="margin:8px 0 0">${esc(f.folder)}</p>
+    ${ficheHtml(fiches[f.path])}
     ${myNote(`local:${f.path}`, `Vidéo privée · ${pretty(f.name)}`, { placeholder: "Points clés, détails, erreurs, drills à faire, semaine du programme où l'utiliser…" })}`,
     { close: () => URL.revokeObjectURL(url) });
   body.querySelector("[data-back]").addEventListener("click", () => { URL.revokeObjectURL(url); back?.(); });
