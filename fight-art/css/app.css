@@ -448,3 +448,11 @@ table.stats { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.stats th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 0; }
 table.stats td { padding: 8px 4px 8px 0; border-top: 1px solid var(--line); vertical-align: top; }
 table.stats td.num { white-space: nowrap; }
+
+.guide { margin-top: 6px; }
+.guide summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--tape); list-style: none; }
+.guide summary::-webkit-details-marker { display: none; }
+.guide summary::before { content: "＋ "; }
+.guide[open] summary::before { content: "－ "; }
+.plan-steps { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.list .plan-steps li, .plan-steps li { display: list-item; border: 0; padding: 0; min-height: 0; list-style: decimal; }

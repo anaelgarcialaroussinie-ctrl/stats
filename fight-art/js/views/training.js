@@ -4,6 +4,7 @@ import { weekPlan, dayPlan, fmt, isMinor } from "../engine.js";
 import { DRILL_GROUPS, DRILL_FORMATS, STRENGTH, LEVELS, DAYS } from "../data.js";
 import { runTimer } from "./timer.js";
 import { openBlock, openLog } from "./sessions.js";
+import { guideInline } from "../drill-guides.js";
 
 const LEVEL_PRIORITIES = {
   1: ["Chutes et relevé technique", "Garde et déplacements", "Jab, direct, défense de base", "Sprawl, double-leg, single-leg", "Positions : montée, contrôle latéral, dos, garde", "Sorties : shrimp et pont", "Étranglement arrière et guillotine"],
@@ -38,8 +39,8 @@ export function renderTraining(el, ctx) {
     <div class="stack" style="margin-top:10px">${DRILL_GROUPS.map((g) => `
       <section class="panel">
         <div class="row between"><h3>${esc(g.title)}</h3><button class="btn small tape-btn" data-run="${g.id}">${icon("play")} Lancer</button></div>
-        <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">${g.drills.length} drills · voir le détail</summary>
-          <ul class="list" style="margin-top:6px">${g.drills.map((d) => `<li><div><div style="font-weight:650">${esc(d.name)}</div><div class="meta">${esc(d.how)}</div></div></li>`).join("")}</ul>
+        <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">${g.drills.length} drills · voir le détail et les vidéos</summary>
+          <ul class="list" style="margin-top:6px">${g.drills.map((d) => `<li><div style="min-width:0;flex:1"><div style="font-weight:650">${esc(d.name)}</div><div class="meta">${esc(d.how)}</div>${guideInline(d.name)}</div></li>`).join("")}</ul>
         </details>
       </section>`).join("")}</div>
 

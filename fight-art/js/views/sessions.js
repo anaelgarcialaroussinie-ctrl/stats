@@ -3,6 +3,7 @@ import { store, todayKey, uid } from "../store.js";
 import { STRENGTH, MOBILITY, MOVEMENT, PAIN_ZONES } from "../data.js";
 import { esc, icon, openSheet, closeSheet, toast, scale } from "../ui.js";
 import { readiness, readinessAdvice, suggestedLoad, isMinor, fmt, brzycki } from "../engine.js";
+import { guideInline } from "../drill-guides.js";
 
 const ensureDay = (s, key) => (s.sessions[key] ||= { logs: [], done: {} });
 
@@ -111,7 +112,7 @@ export function openRoutine(key, block, after) {
   const done = new Set();
   const body = openSheet(R.title, `
     <p class="muted">${R.minutes} minutes. Coche au fur et à mesure.</p>
-    <ul class="list" style="margin-top:8px">${R.items.map((it, i) => `<li><div><div style="font-weight:650">${esc(it.name)}</div><div class="meta">${esc(it.detail)}</div></div>
+    <ul class="list" style="margin-top:8px">${R.items.map((it, i) => `<li><div style="min-width:0;flex:1"><div style="font-weight:650">${esc(it.name)}</div><div class="meta">${esc(it.detail)}</div>${guideInline(it.name)}</div>
       <button type="button" class="icon-btn" data-it="${i}" aria-pressed="false" aria-label="Fait">${icon("check")}</button></li>`).join("")}</ul>
     <button class="btn tape-btn block" data-finish style="margin-top:16px">Terminer</button>`);
   body.addEventListener("click", (e) => {
