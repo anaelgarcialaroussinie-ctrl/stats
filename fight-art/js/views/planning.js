@@ -4,6 +4,24 @@ import { esc, icon, openSheet, toast } from "../ui.js";
 import { CLUB_CLASSES, CLUB_METHOD, DAYS_LONG, hm } from "../data.js";
 import { frDate } from "../engine.js";
 import { sync } from "../sync.js";
+import { cachedSeason, loadSeason, seasonWeek, levelFor, LEVEL_LABEL, LEVEL_DOT, MMA_CLASSES, mondaysFrom, setSeasonDates } from "../season.js";
+
+// carte « thème de la saison » pour une semaine
+export function seasonCard(key, p, { compact = false } = {}) {
+  const sw = seasonWeek(key);
+  if (!sw) return "";
+  if (sw.before) return compact ? "" : `<p class="tiny muted">La saison n'a pas encore commencé.</p>`;
+  if (sw.off) return `<div class="season-card"><div class="tiny">Programme de la saison</div><b>Semaine de vacances</b></div>`;
+  if (sw.after) return compact ? "" : `<p class="tiny muted">Programme de la saison terminé.</p>`;
+  const w = sw.week, lv = levelFor(null, p);
+  return `<div class="season-card">
+    <div class="tiny">Saison · bloc ${sw.bloc?.n} « ${esc(sw.bloc?.title || "")} » · semaine ${w.n} sur 40</div>
+    <b class="season-title">${esc(w.title)}</b>
+    ${w.q ? `<p class="small" style="margin:6px 0 0">${esc(w.q)}</p>` : ""}
+    ${compact ? `<p class="small" style="margin:6px 0 0"><span class="lvl ${LEVEL_DOT[lv]}"></span> ${esc(w[lv])}</p>` : `<div class="stack" style="gap:4px;margin-top:8px">${["fond", "dev", "comp"].map((l) => `<div class="small"><span class="lvl ${LEVEL_DOT[l]}"></span> <b>${LEVEL_LABEL[l]}</b> · ${esc(w[l])}</div>`).join("")}</div>
+    ${w.notes?.length ? `<ul class="bul" style="margin-top:6px">${w.notes.map((n) => `<li class="tiny">${esc(n)}</li>`).join("")}</ul>` : ""}${w.bilan ? `<p class="tiny" style="margin:6px 0 0"><b>Bilan du bloc</b> : « ${esc(w.bilan)} »</p>` : ""}`}
+  </div>`;
+}
 
 const cache = {}; // lundi → { classe: thème }
 export const mondayOf = (key) => addDays(key, -dayIndex(key));
@@ -30,7 +48,9 @@ export function openPlanning(startKey = todayKey()) {
     body.innerHTML = `
       <p class="small" style="margin:0"><b>${esc(CLUB_METHOD.motto)}</b></p>
       <p class="muted small" style="margin:4px 0 10px">${esc(CLUB_METHOD.goal)}</p>
-      <div class="row between" style="margin-bottom:6px">
+      ${seasonCard(monday, store.get().profile)}
+      ${coach && cachedSeason() ? `<button class="btn ghost small" data-cal style="margin:8px 0 4px">Calendrier de la saison</button>` : ""}
+      <div class="row between" style="margin:10px 0 6px">
         <button class="icon-btn" data-w="-7" aria-label="Semaine précédente">${icon("back")}</button>
         <b class="small">Semaine du ${esc(frDate(monday, { day: "numeric", month: "long" }))}</b>
         <button class="icon-btn" data-w="7" aria-label="Semaine suivante" style="transform:scaleX(-1)">${icon("back")}</button>
@@ -45,6 +65,7 @@ export function openPlanning(startKey = todayKey()) {
               <span class="badge num" style="flex:none">${hm(c.start)} – ${hm(c.end)}</span>
             </div>
             <p class="small" style="margin:8px 0 0">${esc(c.text)}</p>
+            ${(() => { const sw = seasonWeek(addDays(monday, di)); if (!sw?.week || !MMA_CLASSES.includes(c.id)) return ""; const lv = levelFor(c.id, store.get().profile); return `<p class="small" style="margin:8px 0 0"><span class="lvl ${LEVEL_DOT[lv]}"></span> <b>${esc(sw.week.title)}</b> · ${esc(sw.week[lv])}</p>`; })()}
             <div class="theme-line">${th[c.id] ? `<span class="tiny muted">Thème de la semaine</span><div><b>${esc(th[c.id])}</b></div>` : `<span class="tiny muted">${coach ? "Pas encore de thème cette semaine" : "Thème de la semaine : bientôt annoncé"}</span>`}
               ${coach ? `<button class="btn ghost small" data-edit="${c.id}" style="margin-top:6px">${icon("edit")} ${th[c.id] ? "Modifier le thème" : "Fixer le thème"}</button>` : ""}</div>
           </section>`).join("") : `<p class="muted small" style="margin:6px 0 0">Fermé</p>`}`;
@@ -54,10 +75,11 @@ export function openPlanning(startKey = todayKey()) {
       <p class="hint">Les cours kids et ados ne sont pas affichés.</p>`;
   };
 
-  const refresh = async () => { draw(); await loadThemes(monday); if (body.isConnected) draw(); };
+  const refresh = async () => { draw(); await Promise.all([loadThemes(monday), loadSeason()]); if (body.isConnected) draw(); };
 
   body.addEventListener("click", async (e) => {
     const w = e.target.closest("[data-w]"); if (w) { monday = addDays(monday, Number(w.dataset.w)); refresh(); return; }
+    if (e.target.closest("[data-cal]")) { openCalendar(() => openPlanning(monday)); return; }
     const ed = e.target.closest("[data-edit]");
     if (ed) {
       const box = ed.closest(".theme-line"); const id = ed.dataset.edit; const cur = cachedThemes(monday)[id] || "";
@@ -75,4 +97,30 @@ export function openPlanning(startKey = todayKey()) {
     }
   });
   refresh();
+}
+
+// le coach règle la date de la semaine 1 et les semaines de vacances
+function openCalendar(back) {
+  const s = cachedSeason();
+  let start = s.start, skip = new Set(s.skip || []);
+  const body = openSheet("Calendrier de la saison", "");
+  const draw = () => {
+    const mondays = mondaysFrom(start, 48);
+    let n = 0;
+    body.innerHTML = `<p class="small muted" style="margin-top:0">${esc(s.program.title)} : 40 semaines. Indique le lundi de la semaine 1 et touche les semaines sans cours (vacances) : la numérotation se décale toute seule.</p>
+      <label class="field"><span>Lundi de la semaine 1</span><input class="input" type="date" data-start value="${start}"></label>
+      <div class="stack" style="gap:4px;margin-top:12px">${mondays.map((m) => { const off = skip.has(m); if (!off) n++; if (n > 40 && !off) return ""; return `<button type="button" class="cal-row${off ? " off" : ""}" data-m="${m}"><span>${esc(frDate(m, { day: "numeric", month: "short" }))}</span><b>${off ? "Vacances" : `S${n} · ${esc(s.program.weeks[n - 1]?.title || "")}`}</b></button>`; }).join("")}</div>
+      <button class="btn tape-btn block" data-savecal style="margin-top:14px">Enregistrer le calendrier</button>`;
+  };
+  body.addEventListener("change", (e) => { if (e.target.closest("[data-start]")) { start = e.target.value; draw(); } });
+  body.addEventListener("click", async (e) => {
+    const r = e.target.closest("[data-m]"); if (r) { const m = r.dataset.m; skip.has(m) ? skip.delete(m) : skip.add(m); draw(); return; }
+    const sv = e.target.closest("[data-savecal]");
+    if (sv) {
+      sv.disabled = true; sv.textContent = "Enregistrement…";
+      try { await sync.saveSeason(start, [...skip].sort()); setSeasonDates(start, [...skip].sort()); toast("Calendrier enregistré"); back?.(); }
+      catch { sv.disabled = false; sv.textContent = "Enregistrer le calendrier"; toast("Impossible : vérifie ta connexion"); }
+    }
+  });
+  draw();
 }

@@ -1,5 +1,5 @@
 import { store, uid, todayKey } from "../store.js";
-import { esc, icon, openSheet, closeSheet, toast } from "../ui.js";
+import { esc, icon, openSheet, closeSheet, toast, segBar, bindSeg } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
 import { frDate } from "../engine.js";
@@ -29,11 +29,12 @@ export function renderAcademy(el, ctx) {
   const combos = st.combos || [];
   const scouts = st.scouting || [];
   const systems = st.systems || [];
+  const seg = segBar("academy", [["jeu", "Mon jeu"], ["comprendre", "Comprendre"], ["modeles", "Modèles"], ["videos", "Vidéos"]], "jeu");
 
   el.innerHTML = `
-    <h1 class="display" style="margin:6px 0 4px">Academy</h1>
-    <p class="muted">Comprendre le combat pour mieux le travailler. Les chiffres viennent de l'analyse de 7 670 combats UFC.</p>
-
+    <h1 class="display" style="margin:6px 0 10px">Academy</h1>
+    ${seg.html}
+    <div data-seg="jeu">
     <h2 class="h-sec">Mes fiches techniques</h2>
     <section class="panel">
       ${(st.notes || []).length ? `<ul class="list">${[...st.notes].sort((a, b) => (b.updatedAt || b.date || "").localeCompare(a.updatedAt || a.date || "")).slice(0, 3).map((n) => `<li role="button" tabindex="0" data-note="${n.id}">${noteCard(n)}${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>
@@ -50,6 +51,7 @@ export function renderAcademy(el, ctx) {
       <button class="btn tape-btn block" data-newcombo style="margin-top:12px">${icon("plus")} Noter un combo</button>
     </section>
 
+    </div><div data-seg="comprendre">
     <h2 class="h-sec">Le combat comme une discussion</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Une combinaison pose une question, sa réaction ouvre une faille, ton arme décisive vient l'exploiter. Backfist, retournés, genou sauté, check hook… : quand, pourquoi, ce que tu risques.</p>
@@ -60,6 +62,7 @@ export function renderAcademy(el, ctx) {
       </div>
     </section>
 
+    </div><div data-seg="modeles">
     <h2 class="h-sec">Mes modèles UFC</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Choisis tes combattants préférés : comment ils gagnent, où et d'où ils frappent, leurs chiffres comparés à leur catégorie, et ce que tu peux leur piquer.</p>
@@ -74,6 +77,7 @@ export function renderAcademy(el, ctx) {
       <button class="btn tape-btn block" data-lab style="margin-top:10px">${icon("plus")} Créer un style</button>
     </section>
 
+    </div><div data-seg="jeu2">
     <h2 class="h-sec">Mes systèmes</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Un système, c'est ton plan à l'avance : <b>je fais ceci ; s'il réagit comme ça, je fais cela.</b> Pour chaque technique, regarde d'abord ce qu'elle ouvre et ce qu'elle risque, puis crée ton système.</p>
@@ -84,11 +88,13 @@ export function renderAcademy(el, ctx) {
       <button class="btn ghost block" data-newsys style="margin-top:10px">${icon("plus")} Créer un système</button>
     </section>
 
+    </div><div data-seg="comprendre2">
     <h2 class="h-sec">Étudier le combat</h2>
     <section class="panel" style="padding:4px 16px">
       <ul class="list">${MODULES.map((m) => `<li role="button" tabindex="0" data-mod="${m.id}"><div><div style="font-weight:700">${esc(m.title)}</div><div class="meta">${esc(m.text)}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>
     </section>
 
+    </div><div data-seg="videos">
     <h2 class="h-sec">Vidéothèque du club</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Les vidéos choisies par le coach. Pour chacune : regarde, isole le geste en drill, teste-le en sparring à thème, puis en sparring libre, et note ce qui a marché.</p>
@@ -102,13 +108,18 @@ export function renderAcademy(el, ctx) {
       <button class="btn tape-btn block" data-library>${icon("play")} Ouvrir la formation</button>
     </section>` : ""}
 
+    </div><div data-seg="jeu3">
     <h2 class="h-sec">Préparer un adversaire</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:8px">Fiche d'analyse et game plan : garde, attaques favorites, réactions sous pression, plan A et plan B.</p>
       ${scouts.length ? `<ul class="list">${scouts.map((s) => `<li role="button" tabindex="0" data-scout="${s.id}"><div><div style="font-weight:700">${esc(s.opponent || "Adversaire")}</div><div class="meta">${s.date ? "Combat le " + esc(frDate(s.date, { day: "numeric", month: "long" })) : "Sans date"}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : ""}
       <button class="btn ghost block" data-newscout style="margin-top:10px">${icon("plus")} Nouvelle fiche adversaire</button>
     </section>
+    </div>
   `;
+  // plusieurs blocs par sous-onglet : on les regroupe sous le même identifiant
+  el.querySelectorAll("[data-seg]").forEach((b) => { b.dataset.seg = b.dataset.seg.replace(/\d+$/, ""); });
+  bindSeg(el, "academy", seg.cur);
 
   el.querySelector("[data-newnote]").addEventListener("click", () => openNote(null, ctx.refresh));
   el.querySelector("[data-notes]")?.addEventListener("click", () => openNotesList(ctx.refresh));

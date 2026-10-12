@@ -125,6 +125,10 @@ export const sync = {
   async themes(from, to) { if (!token) return []; return rpc("fap_themes", { p_token: token, p_from: from, p_to: to }); },
   async saveTheme(week, cls, theme) { return rpc("fap_theme_save", { p_token: token, p_week: week, p_class: cls, p_theme: theme }); },
 
+  // programme annuel du club
+  async season() { if (!token) return null; return rpc("fap_season", { p_token: token }); },
+  async saveSeason(start, skip) { return rpc("fap_season_save", { p_token: token, p_start: start, p_skip: skip }); },
+
   // formation vidéo privée du coach
   async library() { if (!token || meta.role !== "coach") return []; return rpc("fap_library", { p_token: token }); },
 

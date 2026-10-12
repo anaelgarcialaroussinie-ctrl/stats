@@ -1,5 +1,5 @@
 import { store, todayKey } from "../store.js";
-import { esc, icon, openSheet, closeSheet } from "../ui.js";
+import { esc, icon, openSheet, closeSheet, segBar, bindSeg } from "../ui.js";
 import { weekPlan, dayPlan, fmt, isMinor } from "../engine.js";
 import { DRILL_GROUPS, DRILL_FORMATS, STRENGTH, LEVELS, DAYS } from "../data.js";
 import { runTimer } from "./timer.js";
@@ -8,7 +8,8 @@ import { guideInline } from "../drill-guides.js";
 import { EX, PREHAB, scPhase } from "../sc-data.js";
 import { openPrehab } from "./sessions.js";
 import { computeQualities, PRIORITY_TEXT } from "../qualities.js";
-import { openPlanning } from "./planning.js";
+import { openPlanning, seasonCard } from "./planning.js";
+import { cachedSeason, loadSeason } from "../season.js";
 import { openVideoCoach } from "./video.js";
 
 const LEVEL_PRIORITIES = {
@@ -29,15 +30,25 @@ export function renderTraining(el, ctx) {
   const lifts = Object.entries(st.lifts || {});
   const zonesMine = [...new Set([...(p.injuries || []), ...((st.checkins[key]?.pain && st.checkins[key].painZones) || [])])];
 
+  const chargesHtml = `<h2 class="h-sec">Tes charges</h2><section class="panel"><ul class="list">${lifts.map(([id, l]) => {
+      const ex = { ...EX[id], inc: EX[id]?.inc };
+      return `<li><div><div style="font-weight:650">${esc(ex?.name || id)}</div><div class="meta">${l.allDone ? "Toutes les séries réussies : +" + (ex?.inc || 0) + " kg la prochaine fois" : "On garde la charge"}</div></div><div class="right"><b>${fmt(l.kg, 1)} kg</b>${l.e1rm ? `<div class="meta">max estimé ${fmt(l.e1rm)} kg</div>` : ""}</div></li>`;
+    }).join("")}</ul></section>`;
+  const seg = segBar("seances", [["club", "Club"], ["prepa", "Prépa physique"], ["tech", "Technique"]], "club");
+  const seasonCardT = seasonCard(key, p);
   el.innerHTML = `
-    <h1 class="display" style="margin:6px 0 14px">Entraînement</h1>
-    <div class="week" role="list">${week.map((d) => `<div class="day ${d.today ? "today" : ""}" role="listitem"><b>${DAYS[d.i]}</b>${d.parts.map((x) => `<span class="k">${esc(x)}</span>`).join("")}</div>`).join("")}</div>
+    <h1 class="display" style="margin:6px 0 10px">Séances</h1>
+    ${seg.html}
+    <div data-seg="club">
+    <div class="week" role="list" style="margin-top:12px">${week.map((d) => `<div class="day ${d.today ? "today" : ""}" role="listitem"><b>${DAYS[d.i]}</b>${d.parts.map((x) => `<span class="k">${esc(x)}</span>`).join("")}</div>`).join("")}</div>
     <p class="hint">Force : lourd, rapide, volume. Modifie tes jours dans ton profil.</p>
 
+    ${seasonCardT}
+    <button class="panel row between" data-planning style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Planning du club</div><div class="muted small">Horaires, contenu des cours, programme de la saison et thème de la semaine</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
+    </div>
+    <div data-seg="prepa">
     ${strength ? `<section class="panel row between" style="margin-top:14px"><div><div style="font-weight:700">${esc(strength.title)}</div><div class="muted small">${esc(strength.detail)}</div></div><button class="btn small" data-strength>Ouvrir</button></section>` : ""}
 
-    <button class="panel row between" data-videocoach style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Analyse vidéo de ta posture</div><div class="muted small">Garde, posture de lutte, technique : mesures automatiques et avis du coach perso</div></div>${icon("camera", 'style="width:22px;height:22px;flex:none"')}</button>
-    <button class="panel row between" data-planning style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Planning du club</div><div class="muted small">Horaires, contenu des cours et thème de la semaine</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
 
     <h2 class="h-sec">Prépa physique</h2>
     <section class="panel">
@@ -52,6 +63,10 @@ export function renderTraining(el, ctx) {
       <p class="hint">Touche une zone : son programme de renforcement, 10 à 15 minutes, avec les explications et les vidéos.</p>
     </section>
 
+    ${lifts.length && !isMinor(p) ? chargesHtml : ""}
+    </div>
+    <div data-seg="tech">
+    <button class="panel row between" data-videocoach style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Analyse vidéo de ta posture</div><div class="muted small">Garde, posture de lutte, technique : mesures automatiques et avis du coach perso</div></div>${icon("camera", 'style="width:22px;height:22px;flex:none"')}</button>
     <h2 class="h-sec">Minuteur de rounds</h2>
     <div class="chips">${DRILL_FORMATS.map((f) => `<button class="chip" data-timer="${f.id}">${esc(f.label)}</button>`).join("")}</div>
 
@@ -70,12 +85,11 @@ export function renderTraining(el, ctx) {
       <ol class="plan" style="margin-top:6px">${(LEVEL_PRIORITIES[p.level] || LEVEL_PRIORITIES[1]).map((t) => `<li class="plan-item"><div class="t">${esc(t)}</div><span></span></li>`).join("")}</ol>
     </section>
 
-    ${lifts.length && !isMinor(p) ? `<h2 class="h-sec">Tes charges</h2><section class="panel"><ul class="list">${lifts.map(([id, l]) => {
-      const ex = { ...EX[id], inc: EX[id]?.inc };
-      return `<li><div><div style="font-weight:650">${esc(ex?.name || id)}</div><div class="meta">${l.allDone ? "Toutes les séries réussies : +" + (ex?.inc || 0) + " kg la prochaine fois" : "On garde la charge"}</div></div><div class="right"><b>${fmt(l.kg, 1)} kg</b>${l.e1rm ? `<div class="meta">max estimé ${fmt(l.e1rm)} kg</div>` : ""}</div></li>`;
-    }).join("")}</ul></section>` : ""}
+    </div>
   `;
 
+  bindSeg(el, "seances", seg.cur);
+  if (!cachedSeason()) loadSeason().then((x) => { if (x && el.isConnected) ctx.refresh(); });
   el.querySelector("[data-planning]").addEventListener("click", () => openPlanning());
   el.querySelector("[data-videocoach]").addEventListener("click", () => openVideoCoach(ctx.refresh));
   el.querySelectorAll("[data-prehab]").forEach((b) => b.addEventListener("click", () => openPrehab(b.dataset.prehab, ctx.refresh)));

@@ -156,3 +156,20 @@ export function sparkline(points, { unit = "", height = 120 } = {}) {
     <path class="ln" d="${d}"/><circle class="pt" cx="${x(points.length - 1)}" cy="${y(last.v)}" r="4.5"/>
   </svg>`;
 }
+
+// sous-onglets d'un écran (mémorisés sur le téléphone)
+const SEG_KEY = "fap:seg:";
+export function segBar(key, items, def) {
+  let cur = def; try { cur = localStorage.getItem(SEG_KEY + key) || def; } catch {}
+  if (!items.some(([id]) => id === cur)) cur = def;
+  return { cur, html: `<div class="segbar" role="tablist">${items.map(([id, l]) => `<button role="tab" data-seg-to="${id}" aria-selected="${id === cur}">${esc(l)}</button>`).join("")}</div>` };
+}
+export function bindSeg(el, key, cur) {
+  const show = (id) => {
+    el.querySelectorAll("[data-seg]").forEach((b) => { b.hidden = b.dataset.seg !== id; });
+    el.querySelectorAll("[data-seg-to]").forEach((b) => b.setAttribute("aria-selected", b.dataset.segTo === id));
+    try { localStorage.setItem(SEG_KEY + key, id); } catch {}
+  };
+  el.querySelectorAll("[data-seg-to]").forEach((b) => b.addEventListener("click", () => { show(b.dataset.segTo); window.scrollTo({ top: 0 }); }));
+  show(cur);
+}
