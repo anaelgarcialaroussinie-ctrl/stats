@@ -37,13 +37,16 @@ function ficheHtml(fi) {
 }
 async function scan(dir, onProgress) {
   const out = [];
+  const SKIP = /^(\.|\$|System Volume Information$|RECYCLER$|Recovery$|Windows$|Program Files|ProgramData$|AppData$|node_modules$)/i;
   async function walk(h, path, depth) {
-    if (depth > 8) return;
-    for await (const [name, e] of h.entries()) {
-      if (name.startsWith(".") || name.startsWith("$")) continue;
-      if (e.kind === "directory") await walk(e, path ? `${path}/${name}` : name, depth + 1);
-      else if (VIDEO.test(name)) { out.push({ path: path ? `${path}/${name}` : name, folder: path || "(racine)", name, handle: e }); if (out.length % 50 === 0) onProgress?.(out.length); }
-    }
+    if (depth > 10) return;
+    try {
+      for await (const [name, e] of h.entries()) {
+        if (SKIP.test(name)) continue;
+        if (e.kind === "directory") await walk(e, path ? `${path}/${name}` : name, depth + 1);
+        else if (VIDEO.test(name)) { out.push({ path: path ? `${path}/${name}` : name, folder: path || "(racine)", name, handle: e }); if (out.length % 50 === 0) onProgress?.(out.length); }
+      }
+    } catch { /* dossier protégé ou illisible : on passe au suivant */ }
   }
   await walk(dir, "", 0);
   const nat = (a, b) => a.localeCompare(b, "fr", { numeric: true, sensitivity: "base" });
@@ -75,14 +78,17 @@ export function openLocalVideos() {
 
   const pick = async () => {
     try { root = await window.showDirectoryPicker({ id: "fap-videos", mode: "read" }); }
-    catch { return; }
+    catch (e) {
+      if (e?.name !== "AbortError") { body.innerHTML += `<p class="notice is-warn small" style="margin-top:10px">Le navigateur refuse ce dossier (souvent la racine du disque, ex. « D: », car elle contient des fichiers système). Choisis plutôt le dossier principal des vidéos, à l'intérieur du disque.</p>`; }
+      return;
+    }
     try { await saveHandle(root); } catch { /* on redemandera le dossier la prochaine fois */ }
     await load();
   };
   const load = async () => {
     body.innerHTML = intro + `<p class="muted small" data-prog>Lecture du disque dur…</p>`;
     try { files = (await scan(root, (n) => { const p = body.querySelector("[data-prog]"); if (p) p.textContent = `Lecture du disque dur… ${n} vidéos trouvées`; })).filter((f) => !f.path.startsWith("Fiches Fight Art/")); fiches = { ...(store.get().localFiches || {}), ...(await loadFiches(root)) }; }
-    catch { files = []; toast("Impossible de lire ce dossier : le disque est-il bien branché ?"); }
+    catch (e) { files = []; toast("Impossible de lire ce dossier : le disque est-il bien branché ?"); body.innerHTML = `<p class="notice is-warn small">Lecture impossible (${esc(e?.message || "erreur inconnue")}). Vérifie que le disque est branché, puis choisis le dossier principal des vidéos.</p><button class="btn tape-btn block" data-pick style="margin-top:10px">Choisir le dossier</button>`; return; }
     draw();
   };
 
