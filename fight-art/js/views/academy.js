@@ -200,7 +200,7 @@ function editCombo(existing, after, preset) {
 }
 
 // ---------- modules ----------
-function openModule(id, ctx) {
+export function openModule(id, ctx) {
   if (id === "zones") return openSheet("Les zones du combat", ZONES.map((z) => `
     <section class="panel" style="margin-bottom:12px">
       <h3 class="display" style="font-size:24px">${esc(z.title)}</h3>

@@ -1,9 +1,14 @@
-// Assistant : aide immédiate par sujet + vraie réponse personnalisée (dans l'heure, de 8 h à minuit).
+// Assistant : réponse immédiate tirée du contenu de l'appli + réponse personnalisée de l'IA (dans l'heure, de 8 h à minuit).
 import { store } from "../store.js";
 import { esc, icon, toast } from "../ui.js";
 import { sync } from "../sync.js";
 import { isMinor } from "../engine.js";
 import { openVideoCoach } from "./video.js";
+import { instantAnswer } from "../answer.js";
+import { openExplorer } from "./systems.js";
+import { openDiscussion } from "./discussion.js";
+import { openGuide } from "../drill-guides.js";
+import { openModule } from "./academy.js";
 
 export const TOPICS = [
   { id: "technique", label: "Technique", ask: "Ex. Je n'arrive pas à finir mes double-leg contre la cage, je me fais guillotiner.",
@@ -22,49 +27,77 @@ export const TOPICS = [
   { id: "autre", label: "Autre", ask: "Pose ta question librement.", now: ["Plus tu donnes de détails, plus la réponse sera adaptée."] },
 ];
 
-let topic = "technique";
+let draft = "";
+// sujet déduit des mots de la question (pour l'IA et le coach)
+function guessTopic(t) {
+  const n = t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/(douleur|mal |blessure|blesse|choc|genou|epaule|cheville)/.test(n)) return "douleur";
+  if (/(peur|stress|fige|panique|bloque|trac)/.test(n)) return "peur";
+  if (/(manger|repas|calorie|proteine|poids|nutrition|faim|regime)/.test(n)) return "nutrition";
+  if (/(squat|muscu|force|cardio|prepa|souffle|charge)/.test(n)) return "prepa";
+  if (/(mental|confiance|moral|competition|pression)/.test(n)) return "mental";
+  return "technique";
+}
 
 export function renderAssistant(el, ctx) {
   const p = store.get().profile;
-  const t = TOPICS.find((x) => x.id === topic);
   const live = sync.connected() && !window.FAP_PREVIEW;
 
   el.innerHTML = `
     <div class="row" style="margin:4px 0 10px"><button class="icon-btn" data-back aria-label="Retour">${icon("back")}</button></div>
     <h1 class="display">Coach perso</h1>
-    <p class="muted" style="margin-top:8px">Parle de ce qui te bloque : un point technique, une peur, ta nutrition, ta prépa, ton mental. L'assistant connaît ton profil et tes données. Il te répond dans l'appli, en général dans l'heure, entre 8 h et minuit.</p>
-
-    <button class="panel row between" data-video style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Analyser une vidéo</div><div class="muted small">Garde, posture de lutte, technique : le téléphone mesure ta posture, ton coach perso t'explique quoi corriger.</div></div><span class="icon-btn" style="background:var(--tape);color:var(--tape-ink);flex:none">${icon("camera")}</span></button>
-
-    <h2 class="h-sec">De quoi veux-tu parler ?</h2>
-    <div class="chips">${TOPICS.map((x) => `<button class="chip" data-topic="${x.id}" aria-pressed="${x.id === topic}">${esc(x.label)}</button>`).join("")}</div>
-
-    <section class="panel" style="margin-top:14px">
-      <h3>Tout de suite</h3>
-      <ul class="bul" style="margin-top:8px">${t.now.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-    </section>
-
     <form data-ask class="panel stack" style="margin-top:12px">
-      <label class="field"><span>Ta question</span><textarea class="input" name="body" rows="5" maxlength="3000" placeholder="${esc(t.ask)}"></textarea></label>
-      <label class="row small"><input type="checkbox" name="share" checked style="width:20px;height:20px"><span>Mon coach peut voir ma question et la réponse</span></label>
-      <button class="btn tape-btn block" ${live ? "" : "disabled"}>Envoyer à l'assistant</button>
-      ${live ? "" : `<p class="hint">${window.FAP_PREVIEW ? "Dans l'aperçu, l'envoi est désactivé." : "Relie ton téléphone à l'équipe (code d'équipe) pour poser des questions."}</p>`}
+      <label class="field"><span>Ta question</span><textarea class="input" name="body" rows="4" maxlength="3000" placeholder="Ex. J'ai du mal à rentrer en lutte, je subis toujours le sprawl.">${esc(draft)}</textarea></label>
+      <div data-instant></div>
+      <div data-send hidden class="stack" style="gap:8px">
+        <button class="btn tape-btn block" ${live ? "" : "disabled"}>Réponse personnalisée de l'IA</button>
+        <p class="tiny muted" style="margin:0">Elle tient compte de ton profil et de tes données, et arrive dans l'heure (de 8 h à minuit). Tu la retrouves en bas de cette page.</p>
+        <label class="row small"><input type="checkbox" name="share" checked style="width:20px;height:20px"><span>Mon coach peut voir ma question et la réponse</span></label>
+        ${live ? "" : `<p class="hint">${window.FAP_PREVIEW ? "Dans l'aperçu, l'envoi est désactivé." : "Relie ton téléphone à l'équipe (code d'équipe) pour envoyer ta question."}</p>`}
+      </div>
     </form>
-    <p class="hint">L'assistant conseille, il ne remplace ni un médecin, ni un kiné, ni un psychologue.${isMinor(p) ? " Pour les moins de 18 ans, il ne donne ni régime, ni coupe de poids, ni compléments." : ""} En cas de détresse : 3114.</p>
+    <button class="panel row between" data-video style="width:100%;text-align:left;margin-top:12px"><div><div style="font-weight:700">Analyser une vidéo</div><div class="muted small">Le téléphone mesure ta posture, l'IA t'explique quoi corriger.</div></div><span class="icon-btn" style="background:var(--tape);color:var(--tape-ink);flex:none">${icon("camera")}</span></button>
+    <p class="hint">Le coach perso conseille, il ne remplace ni un médecin, ni un kiné, ni un psychologue.${isMinor(p) ? " Pour les moins de 18 ans : ni régime, ni coupe de poids, ni compléments." : ""} En cas de détresse : 3114.</p>
 
     <h2 class="h-sec">Mes questions</h2>
     <div data-list class="stack"><p class="muted small">${live ? "Chargement…" : "Aucune question pour l'instant."}</p></div>
   `;
 
+  const form = el.querySelector("[data-ask]"), box = el.querySelector("[data-instant]"), send = el.querySelector("[data-send]");
+  let hits = [];
+  const showInstant = () => {
+    const q = form.body.value.trim(); draft = form.body.value;
+    send.hidden = q.length < 8;
+    if (q.length < 8) { box.innerHTML = ""; return; }
+    hits = instantAnswer(q);
+    box.innerHTML = hits.length ? `<div class="tiny" style="font-weight:700;color:var(--tape);margin:4px 0 6px">Réponse immédiate</div>
+      ${hits.map((d, i) => `<div class="answer" style="margin-bottom:8px"><div class="tiny muted">${esc(d.kind)}</div><b>${esc(d.title)}</b>
+        <ul class="bul" style="margin-top:4px">${d.lines.slice(0, 3).map((l) => `<li class="small">${esc(l)}</li>`).join("")}</ul>
+        ${d.open ? `<button type="button" class="btn ghost small" data-open="${i}">Voir en détail</button>` : ""}</div>`).join("")}`
+      : `<p class="tiny muted" style="margin:4px 0">Rien de précis dans l'appli sur ce sujet : envoie ta question à l'IA ci-dessous.</p>`;
+  };
+  let t;
+  form.body.addEventListener("input", () => { clearTimeout(t); t = setTimeout(showInstant, 250); });
+  box.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-open]"); if (!b) return;
+    const o = hits[Number(b.dataset.open)].open;
+    if (o.tech) openExplorer(o.tech, ctx.refresh);
+    else if (o.weapon) openDiscussion({ w: o.weapon });
+    else if (o.reaction) openDiscussion({ r: o.reaction });
+    else if (o.question !== undefined) openDiscussion({ q: o.question });
+    else if (o.guide) openGuide(o.guide, o.how);
+    else if (o.module) openModule(o.module, ctx);
+  });
+  if (draft) showInstant();
+
   el.querySelector("[data-video]").addEventListener("click", () => openVideoCoach(ctx.refresh));
   el.querySelector("[data-back]").addEventListener("click", () => history.length > 1 ? history.back() : ctx.go("today"));
-  el.querySelectorAll("[data-topic]").forEach((b) => b.addEventListener("click", () => { topic = b.dataset.topic; ctx.refresh(); }));
-  el.querySelector("[data-ask]").addEventListener("submit", async (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const body = e.target.body.value.trim(); if (!body || !live) return;
-    const btn = e.target.querySelector("button"); btn.disabled = true; btn.textContent = "Envoi…";
-    try { await sync.ask(topic, body, e.target.share.checked); toast("Question envoyée"); ctx.refresh(); }
-    catch (x) { btn.disabled = false; btn.textContent = "Envoyer à l'assistant"; toast(x.code === "too_many" ? "Limite de 20 questions par jour atteinte" : "Envoi impossible : vérifie ta connexion"); }
+    const body = form.body.value.trim(); if (!body || !live) return;
+    const btn = send.querySelector("button"); btn.disabled = true; btn.textContent = "Envoi…";
+    try { await sync.ask(guessTopic(body), body, form.share.checked); draft = ""; toast("Question envoyée à l'IA"); ctx.refresh(); }
+    catch (x) { btn.disabled = false; btn.textContent = "Réponse personnalisée de l'IA"; toast(x.code === "too_many" ? "Limite de 20 questions par jour atteinte" : "Envoi impossible : vérifie ta connexion"); }
   });
 
   if (live) sync.myQuestions().then((qs) => {
@@ -72,7 +105,7 @@ export function renderAssistant(el, ctx) {
     list.innerHTML = qs.length ? qs.map((q) => `<section class="panel">
       <div class="row between"><span class="badge tiny">${esc(TOPICS.find((x) => x.id === q.topic)?.label || q.topic)}</span><span class="tiny muted">${esc(new Date(q.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</span></div>
       <p style="margin:10px 0">${esc(q.body)}</p>
-      ${q.status === "answered" ? `<div class="answer"><div class="tiny" style="font-weight:700;margin-bottom:6px">Réponse de l'assistant</div>${fmtAnswer(q.answer)}</div>` : `<p class="tiny muted" style="margin:0">En attente de réponse : en général dans l'heure, entre 8 h et minuit.</p>`}
+      ${q.status === "answered" ? `<div class="answer"><div class="tiny" style="font-weight:700;margin-bottom:6px">Réponse de l'IA</div>${fmtAnswer(q.answer)}</div>` : `<p class="tiny muted" style="margin:0">Réponse de l'IA en préparation : elle arrive dans l'heure, entre 8 h et minuit.</p>`}
     </section>`).join("") : `<p class="muted small">Aucune question pour l'instant.</p>`;
   }).catch(() => { const list = el.querySelector("[data-list]"); if (list) list.innerHTML = `<p class="notice is-warn small">Impossible de charger tes questions. Vérifie ta connexion.</p>`; });
 }
