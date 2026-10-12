@@ -8,6 +8,7 @@ import { LUTA_INTRO, GLOSSARY, LESSON, GRADES, CYCLES } from "../luta-data.js";
 import { sync } from "../sync.js";
 import { openDiscussion } from "./discussion.js";
 import { openModel, openModelSearch } from "./models.js";
+import { openNote, openNoteRead, openNotesList, noteCard } from "./notes.js";
 
 const moveLabel = (id) => MOVES.find((m) => m.id === id)?.label || id;
 const moveName = (id) => MOVES.find((m) => m.id === id)?.name || id;
@@ -31,6 +32,13 @@ export function renderAcademy(el, ctx) {
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 4px">Academy</h1>
     <p class="muted">Comprendre le combat pour mieux le travailler. Les chiffres viennent de l'analyse de 7 670 combats UFC.</p>
+
+    <h2 class="h-sec">Mes fiches techniques</h2>
+    <section class="panel">
+      ${(st.notes || []).length ? `<ul class="list">${[...st.notes].sort((a, b) => (b.updatedAt || b.date || "").localeCompare(a.updatedAt || a.date || "")).slice(0, 3).map((n) => `<li role="button" tabindex="0" data-note="${n.id}">${noteCard(n)}${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>
+        ${st.notes.length > 3 ? `<button class="btn ghost block small" data-notes style="margin-top:8px">Voir mes ${st.notes.length} fiches</button>` : ""}` : `<p class="muted small" style="margin:0 0 4px">Après un cours ou une vidéo : les points importants d'une technique, ton ressenti, tes problèmes et comment les régler. Tout est gardé, et ton coach peut t'aider.</p>`}
+      <button class="btn tape-btn block" data-newnote style="margin-top:12px">${icon("plus")} Nouvelle fiche</button>
+    </section>
 
     <h2 class="h-sec">Mes combos fétiches</h2>
     <section class="panel">
@@ -94,6 +102,9 @@ export function renderAcademy(el, ctx) {
     </section>
   `;
 
+  el.querySelector("[data-newnote]").addEventListener("click", () => openNote(null, ctx.refresh));
+  el.querySelector("[data-notes]")?.addEventListener("click", () => openNotesList(ctx.refresh));
+  el.querySelectorAll("[data-note]").forEach((li) => li.addEventListener("click", () => openNoteRead((st.notes || []).find((n) => n.id === li.dataset.note), ctx.refresh)));
   el.querySelector("[data-newcombo]").addEventListener("click", () => editCombo(null, ctx.refresh));
   el.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => editCombo(combos.find((c) => c.id === b.dataset.edit), ctx.refresh)));
   el.querySelectorAll("[data-drill]").forEach((b) => b.addEventListener("click", () => drillCombo(combos.find((c) => c.id === b.dataset.drill))));

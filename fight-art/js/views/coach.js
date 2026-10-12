@@ -6,6 +6,7 @@ import { sync } from "../sync.js";
 import { TOPICS, fmtAnswer } from "./assistant.js";
 import { systemTree } from "./systems.js";
 import { profileCard } from "./identity.js";
+import { noteCard, noteView } from "./notes.js";
 
 // Exemple affiché tant qu'aucune équipe n'est reliée.
 const SAMPLE = [
@@ -98,6 +99,7 @@ function openFighter(f, live) {
     ${(f.st?.combos || []).length ? `<h3 class="h-sec" style="font-size:18px">Ses combos fétiches</h3><ul class="list">${f.st.combos.map((c) => `<li><div><div style="font-weight:650">${esc(c.name)}</div><div class="meta">${esc(c.seq.join(" · "))}${c.when ? " — " + esc(c.when) : ""}</div></div></li>`).join("")}</ul>` : ""}
     ${f.weights?.length > 1 ? `<h3 class="h-sec" style="font-size:18px">Poids</h3>${sparkline(f.weights.slice(-30).map((x) => ({ v: x.kg })), { unit: " kg" })}` : ""}
     ${f.lastSeen ? `<p class="hint">Dernière ouverture de l'appli : ${esc(new Date(f.lastSeen).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))}</p>` : ""}
+    ${(f.st?.notes || []).length ? `<h3 class="h-sec" style="font-size:18px">Ses fiches techniques</h3>${[...f.st.notes].sort((a, b) => (b.updatedAt || b.date || "").localeCompare(a.updatedAt || a.date || "")).map((n) => `<details class="sys-card" style="margin-top:8px"><summary class="row">${noteCard(n)}</summary>${noteView(n)}</details>`).join("")}` : ""}
     ${(f.st?.systems || []).length ? `<h3 class="h-sec" style="font-size:18px">Ses systèmes</h3>${f.st.systems.map((x) => `<details class="sys-card" style="margin-top:8px"><summary><b>${esc(x.name)}</b></summary>${systemTree(x)}</details>`).join("")}` : ""}
     <div data-qs></div>
     <form data-msg style="margin-top:14px">
