@@ -3,6 +3,7 @@
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { store } from "../store.js";
+import { DISCIPLINES, classify, translateTitle } from "../vid-classify.js";
 
 const VIDEO = /\.(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|flv|ts)$/i;
 const PLAYABLE = /\.(mp4|m4v|mov|webm|mkv)$/i;
@@ -56,8 +57,8 @@ const pretty = (n) => n.replace(VIDEO, "").replace(/[_]+/g, " ").replace(/\s+/g,
 
 export function openLocalVideos() {
   const body = openSheet("Ma vidéothèque privée", "");
-  let q = "";
-  const intro = `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par dossier et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : sa fiche de travail (si elle est prête sur le disque) et tes notes.</p>`;
+  let q = "", disc = "";
+  const intro = `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par discipline et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : sa fiche de travail (si elle est prête sur le disque) et tes notes.</p>`;
 
   const draw = () => {
     if (!localSupported()) { body.innerHTML = intro + `<p class="notice is-warn small">Ouvre l'appli sur ton ordinateur, dans Chrome ou Edge, avec le disque dur branché. Sur téléphone, les navigateurs ne peuvent pas lire un disque dur. Tes notes, elles, suivent sur tous tes appareils.</p>`; return; }
@@ -66,12 +67,18 @@ export function openLocalVideos() {
     const list = q ? files.filter((f) => f.path.toLowerCase().includes(q)) : files;
     const groups = [];
     list.forEach((f) => { let g = groups.find((x) => x.folder === f.folder); if (!g) groups.push(g = { folder: f.folder, items: [] }); g.items.push(f); });
+    // chaque instructional reçoit sa discipline (nom du dossier + noms des vidéos)
+    groups.forEach((g) => { g.disc = classify(`${g.folder} ${g.folder} ${g.items.slice(0, 30).map((i) => i.name).join(" ")}`); });
+    const counts = {}; groups.forEach((g) => { counts[g.disc.id] = (counts[g.disc.id] || 0) + 1; });
+    const shown = disc ? groups.filter((g) => g.disc.id === disc) : groups;
+    const ordered = DISCIPLINES.flatMap((d) => shown.filter((g) => g.disc.id === d.id));
     body.innerHTML = intro + `
       <div class="row" style="gap:8px;margin-bottom:10px"><input class="input" data-q placeholder="Rechercher (technique, auteur…)" value="${esc(q)}" style="flex:1"><button class="btn ghost small" data-pick>Changer de dossier</button></div>
-      <p class="tiny muted">${files.length} vidéos dans ${new Set(files.map((f) => f.folder)).size} dossiers${root ? ` · dossier « ${esc(root.name)} »` : ""} · ${(() => { const n = files.filter((f) => fiches[f.path]).length; return n + (n > 1 ? " fiches prêtes" : " fiche prête"); })()}</p>
-      ${groups.slice(0, 200).map((g) => `<details class="sys-card"${q ? " open" : ""}><summary><b>${esc(g.folder.split("/").pop())}</b><span class="tiny muted" style="display:block">${esc(g.folder.includes("/") ? g.folder.split("/").slice(0, -1).join(" › ") + " · " : "")}${g.items.length} vidéo${g.items.length > 1 ? "s" : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></summary>
+      <div class="chips" style="margin-bottom:8px"><button class="chip" data-vdisc="" aria-pressed="${!disc}">Tout · ${groups.length}</button>${DISCIPLINES.filter((d) => counts[d.id]).map((d) => `<button class="chip" data-vdisc="${d.id}" aria-pressed="${disc === d.id}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${d.color};margin-right:6px"></span>${esc(d.label)} · ${counts[d.id]}</button>`).join("")}</div>
+      <p class="tiny muted">${files.length} vidéos dans ${new Set(files.map((f) => f.folder)).size} dossiers${root ? ` · dossier « ${esc(root.name)} »` : ""} · ${(() => { const n = files.filter((f) => fiches[f.path]).length; return n + (n > 1 ? " fiches prêtes" : " fiche prête"); })()} · titres traduits automatiquement</p>
+      ${ordered.slice(0, 300).map((g, gi) => `${gi === 0 || ordered[gi - 1].disc.id !== g.disc.id ? `<h3 class="sys-h" style="color:${g.disc.color};margin-top:14px">${esc(g.disc.label)}</h3>` : ""}<details class="sys-card" style="border-left:4px solid ${g.disc.color}"${q ? " open" : ""}><summary><b>${esc(translateTitle(g.folder.split("/").pop()))}</b><span class="tiny muted" style="display:block">${esc(g.folder.split("/").pop())} · ${g.items.length} vidéo${g.items.length > 1 ? "s" : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></summary>
         ${fiches[`${g.folder}/__systeme__`] ? `<details style="margin:6px 0"><summary class="small" style="font-weight:700;cursor:pointer;color:var(--tape)">Fiche système de l'instructional</summary>${ficheHtml(fiches[`${g.folder}/__systeme__`])}</details>` : ""}
-        ${g.items.map((i) => `<button class="row between" data-play="${esc(i.path)}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:inherit;padding:10px 0;gap:8px"><span class="small">${esc(pretty(i.name))}${fiches[i.path] ? ` <span class="insigne">fiche</span>` : ""}${notes[`local:${i.path}`] ? ` <span class="tiny" style="color:var(--tape)">✎</span>` : ""}</span>${icon("play", 'style="width:18px;height:18px;flex:none"')}</button>`).join("")}
+        ${g.items.map((i) => `<button class="row between" data-play="${esc(i.path)}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:inherit;padding:10px 0;gap:8px"><span style="min-width:0"><span class="small">${esc(translateTitle(pretty(i.name)))}${fiches[i.path] ? ` <span class="insigne">fiche</span>` : ""}${notes[`local:${i.path}`] ? ` <span class="tiny" style="color:var(--tape)">✎</span>` : ""}</span><span class="tiny muted" style="display:block">${esc(pretty(i.name))}</span></span>${icon("play", 'style="width:18px;height:18px;flex:none"')}</button>`).join("")}
       </details>`).join("")}
       <button class="btn ghost block" data-export style="margin-top:14px">Exporter le catalogue (pour préparer les fiches avec Claude)</button>`;
   };
@@ -99,6 +106,8 @@ export function openLocalVideos() {
       catch { root = null; body.innerHTML = intro + `<p class="notice is-warn small">L'ancien dossier ne répond plus (disque débranché, ou lettre du disque changée). Choisis-le à nouveau.</p><button class="btn tape-btn block" data-pick style="margin-top:10px">Choisir le dossier des vidéos</button>`; }
       return;
     }
+    const dc = e.target.closest("[data-vdisc]");
+    if (dc) { disc = dc.dataset.vdisc; draw(); return; }
     const pl = e.target.closest("[data-play]");
     if (pl) { const f = files.find((x) => x.path === pl.dataset.play); if (f) playVideo(f, () => { openLocalVideos(); }); return; }
     if (e.target.closest("[data-export]")) {
@@ -124,10 +133,10 @@ export function openLocalVideos() {
 async function playVideo(f, back) {
   let url = "";
   try { url = URL.createObjectURL(await f.handle.getFile()); } catch { toast("Vidéo introuvable : le disque est-il branché ?"); return; }
-  const body = openSheet(pretty(f.name), `
+  const body = openSheet(translateTitle(pretty(f.name)), `
     <button class="btn ghost small" data-back style="margin-bottom:10px">${icon("back")} Retour à la vidéothèque</button>
     ${PLAYABLE.test(f.name) ? `<video src="${url}" controls playsinline preload="metadata" style="width:100%;border-radius:12px;background:#000"></video>` : `<p class="notice is-warn small">Ce format (${esc(f.name.split(".").pop())}) ne se lit pas dans le navigateur : ouvre-le avec VLC depuis ton disque dur.</p>`}
-    <p class="tiny muted" style="margin:8px 0 0">${esc(f.folder)}</p>
+    <p class="tiny muted" style="margin:8px 0 0">${esc(pretty(f.name))} · ${esc(f.folder)}</p>
     ${ficheHtml(fiches[f.path])}
     ${myNote(`local:${f.path}`, `Vidéo privée · ${pretty(f.name)}`, { placeholder: "Points clés, détails, erreurs, drills à faire, semaine du programme où l'utiliser…" })}`,
     { close: () => URL.revokeObjectURL(url) });
