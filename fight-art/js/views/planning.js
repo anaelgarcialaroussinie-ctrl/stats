@@ -65,9 +65,14 @@ export function openPlanning(startKey = todayKey()) {
               <span class="badge num" style="flex:none">${hm(c.start)} – ${hm(c.end)}</span>
             </div>
             <p class="small" style="margin:8px 0 0">${esc(c.text)}</p>
-            ${(() => { const sw = seasonWeek(addDays(monday, di)); if (!sw?.week || !MMA_CLASSES.includes(c.id)) return ""; const lv = levelFor(c.id, store.get().profile); return `<p class="small" style="margin:8px 0 0"><span class="lvl ${LEVEL_DOT[lv]}"></span> <b>${esc(sw.week.title)}</b> · ${esc(sw.week[lv])}</p>`; })()}
-            <div class="theme-line">${th[c.id] ? `<span class="tiny muted">Thème de la semaine</span><div><b>${esc(th[c.id])}</b></div>` : `<span class="tiny muted">${coach ? "Pas encore de thème cette semaine" : "Thème de la semaine : bientôt annoncé"}</span>`}
-              ${coach ? `<button class="btn ghost small" data-edit="${c.id}" style="margin-top:6px">${icon("edit")} ${th[c.id] ? "Modifier le thème" : "Fixer le thème"}</button>` : ""}</div>
+            <div class="theme-line">${(() => {
+              const sw = MMA_CLASSES.includes(c.id) ? seasonWeek(addDays(monday, di)) : null;
+              const lv = levelFor(c.id, store.get().profile);
+              const season = sw?.week ? `<span class="tiny muted">Thème de la semaine · S${sw.n}</span><div><b>${esc(sw.week.title)}</b></div><div class="small" style="margin-top:2px"><span class="lvl ${LEVEL_DOT[lv]}"></span> ${esc(sw.week[lv])}</div>` : sw?.off ? `<span class="tiny muted">Semaine de vacances</span>` : "";
+              const extra = th[c.id] ? `<div class="small" style="margin-top:6px"><span class="tiny muted">${season ? "Outils du coach" : "Thème de la semaine"}</span><br><b>${esc(th[c.id])}</b></div>` : "";
+              return season || extra ? season + extra : `<span class="tiny muted">${MMA_CLASSES.includes(c.id) ? "Thème de la semaine : bientôt annoncé" : "Thème : en attente du programme Luta Livre"}</span>`;
+            })()}
+              ${coach ? `<button class="btn ghost small" data-edit="${c.id}" style="margin-top:6px">${icon("edit")} ${th[c.id] ? "Modifier" : MMA_CLASSES.includes(c.id) && seasonWeek(addDays(monday, di))?.week ? "Ajouter mes outils techniques" : "Fixer le thème"}</button>` : ""}</div>
           </section>`).join("") : `<p class="muted small" style="margin:6px 0 0">Fermé</p>`}`;
       }).join("")}
       <h3 class="sys-h" style="margin-top:18px">La méthode</h3>
@@ -83,7 +88,7 @@ export function openPlanning(startKey = todayKey()) {
     const ed = e.target.closest("[data-edit]");
     if (ed) {
       const box = ed.closest(".theme-line"); const id = ed.dataset.edit; const cur = cachedThemes(monday)[id] || "";
-      box.innerHTML = `<label class="field"><span>Thème de la semaine</span><input class="input" data-theme-in maxlength="300" value="${esc(cur)}" placeholder="Ex. Double-leg contre la cage et défense de guillotine"></label>
+      box.innerHTML = `<label class="field"><span>Outils techniques ou thème du cours</span><input class="input" data-theme-in maxlength="300" value="${esc(cur)}" placeholder="Ex. Double-leg contre la cage et défense de guillotine"></label>
         <div class="row" style="gap:8px;margin-top:8px"><button class="btn tape-btn small" data-save="${id}">Enregistrer</button><button class="btn ghost small" data-cancel>Annuler</button></div>`;
       box.querySelector("[data-theme-in]").focus(); return;
     }
