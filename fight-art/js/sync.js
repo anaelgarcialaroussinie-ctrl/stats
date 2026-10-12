@@ -125,6 +125,11 @@ export const sync = {
   async pushSubscribe(sub) { return rpc("fap_push_subscribe", { p_token: token, p_sub: sub }); },
   async pushUnsubscribe(endpoint) { return rpc("fap_push_unsubscribe", { p_token: token, p_endpoint: endpoint }); },
 
+  // programmes du coach (périodes, créneaux, thèmes, vidéos)
+  async programs() { if (!token) return []; return rpc("fap_programs", { p_token: token }); },
+  async saveProgram(p) { return rpc("fap_program_save", { p_token: token, p_prog: p }); },
+  async deleteProgram(id) { return rpc("fap_program_delete", { p_token: token, p_id: id }); },
+
   // vidéothèque du club (le coach ajoute, tout le monde voit)
   async links() { if (!token) return []; return rpc("fap_links", { p_token: token }); },
   async saveLink(l) { return rpc("fap_link_save", { p_token: token, p_id: l.id || null, p_title: l.title, p_url: l.url, p_topic: l.topic, p_note: l.note || "", p_archived: Boolean(l.archived) }); },

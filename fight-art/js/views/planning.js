@@ -4,6 +4,8 @@ import { esc, icon, openSheet, toast } from "../ui.js";
 import { CLUB_CLASSES, CLUB_METHOD, DAYS_LONG, hm } from "../data.js";
 import { frDate } from "../engine.js";
 import { sync } from "../sync.js";
+import { programFor, customSlotsOn, loadPrograms, safeUrl } from "../programs.js";
+import { openPrograms } from "./programs-view.js";
 import { cachedSeason, loadSeason, seasonWeek, MMA_CLASSES, LUTA_CLASSES, lutaWeek, mondaysFrom, setSeasonDates } from "../season.js";
 
 // carte « thème de la saison » : le thème global de la semaine, sans détail (le coach prépare ses cours le lundi)
@@ -23,6 +25,14 @@ export function seasonCard(key, p, { compact = false } = {}) {
 
 // cours qui suivent le programme de la saison (MMA, Luta Livre, liaison)
 const inProgram = (id) => MMA_CLASSES.includes(id) || LUTA_CLASSES.includes(id) || id === "liaison";
+// thème d'une semaine d'un programme du coach, avec ses notes et ses vidéos
+export function programTheme(pw) {
+  if (pw.off) return `<span class="tiny muted">${esc(pw.prog.name)} · semaine de vacances</span>`;
+  const w = pw.week || {};
+  return `<span class="tiny muted">${esc(pw.prog.name)} · S${pw.n}</span><div><b>${esc(w.theme || "Thème bientôt annoncé")}</b></div>
+    ${w.note ? `<div class="small" style="margin-top:2px">${esc(w.note)}</div>` : ""}
+    ${(w.videos || []).length ? `<div class="stack" style="gap:2px;margin-top:4px">${w.videos.filter((v) => safeUrl(v.url)).map((v) => `<a class="small" href="${esc(v.url)}" target="_blank" rel="noopener">▶ ${esc(v.title || "Vidéo")}</a>`).join("")}</div>` : ""}`;
+}
 // thème global d'un cours pour une semaine du programme
 function classTheme(c, sw) {
   const w = sw.week, l = sw.luta;
@@ -56,7 +66,7 @@ export function openPlanning(startKey = todayKey()) {
       <p class="small" style="margin:0"><b>${esc(CLUB_METHOD.motto)}</b></p>
       <p class="muted small" style="margin:4px 0 10px">${esc(CLUB_METHOD.goal)}</p>
       ${seasonCard(monday, store.get().profile)}
-      ${coach && cachedSeason() ? `<button class="btn ghost small" data-cal style="margin:8px 0 4px">Calendrier de la saison</button>` : ""}
+      ${coach ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin:8px 0 4px">${cachedSeason() ? `<button class="btn ghost small" data-cal>Calendrier de la saison</button>` : ""}<button class="btn small" data-progs>Mes programmes</button></div>` : ""}
       <div class="row between" style="margin:10px 0 6px">
         <button class="icon-btn" data-w="-7" aria-label="Semaine précédente">${icon("back")}</button>
         <b class="small">Semaine du ${esc(frDate(monday, { day: "numeric", month: "long" }))}</b>
@@ -64,7 +74,7 @@ export function openPlanning(startKey = todayKey()) {
       </div>
       ${[0, 1, 2, 3, 4, 5].map((di) => {
         const k = addDays(monday, di);
-        const cs = CLUB_CLASSES.filter((c) => c.day === di);
+        const cs = [...CLUB_CLASSES.filter((c) => c.day === di), ...customSlotsOn(k)].sort((a, b) => a.start.localeCompare(b.start));
         return `<h3 class="sys-h" style="margin-top:16px">${esc(DAYS_LONG[di][0].toUpperCase() + DAYS_LONG[di].slice(1))} ${Number(k.slice(8))}${k === today ? ` <span class="badge tiny">aujourd'hui</span>` : ""}</h3>
           ${cs.length ? cs.map((c) => `<section class="panel cls${mine.has(c.id) ? " mine" : ""}" style="margin-top:8px;padding:12px">
             <div class="row between" style="align-items:flex-start;gap:8px">
@@ -73,6 +83,8 @@ export function openPlanning(startKey = todayKey()) {
             </div>
             <p class="small" style="margin:8px 0 0">${esc(c.text)}</p>
             <div class="theme-line">${(() => {
+              const pw = programFor(c.id, addDays(monday, di));
+              if (pw) return programTheme(pw) + (th[c.id] ? `<div class="small" style="margin-top:6px"><span class="tiny muted">Outils du coach</span><br><b>${esc(th[c.id])}</b></div>` : "");
               const sw = inProgram(c.id) ? lutaWeek(addDays(monday, di)) : null;
               const season = sw?.week ? classTheme(c, sw) : sw?.off ? `<span class="tiny muted">Semaine de vacances</span>` : "";
               const extra = th[c.id] ? `<div class="small" style="margin-top:6px"><span class="tiny muted">${season ? "Outils du coach" : "Thème de la semaine"}</span><br><b>${esc(th[c.id])}</b></div>` : "";
@@ -86,11 +98,12 @@ export function openPlanning(startKey = todayKey()) {
       <p class="hint">Les cours kids et ados ne sont pas affichés.</p>`;
   };
 
-  const refresh = async () => { draw(); await Promise.all([loadThemes(monday), loadSeason()]); if (body.isConnected) draw(); };
+  const refresh = async () => { draw(); await Promise.all([loadThemes(monday), loadSeason(), loadPrograms()]); if (body.isConnected) draw(); };
 
   body.addEventListener("click", async (e) => {
     const w = e.target.closest("[data-w]"); if (w) { monday = addDays(monday, Number(w.dataset.w)); refresh(); return; }
     if (e.target.closest("[data-cal]")) { openCalendar(() => openPlanning(monday)); return; }
+    if (e.target.closest("[data-progs]")) { openPrograms(); return; }
     const ed = e.target.closest("[data-edit]");
     if (ed) {
       const box = ed.closest(".theme-line"); const id = ed.dataset.edit; const cur = cachedThemes(monday)[id] || "";

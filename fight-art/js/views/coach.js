@@ -6,6 +6,7 @@ import { sync } from "../sync.js";
 import { TOPICS, fmtAnswer } from "./assistant.js";
 import { systemTree } from "./systems.js";
 import { profileCard } from "./identity.js";
+import { openPrograms } from "./programs-view.js";
 import { noteCard, noteView } from "./notes.js";
 
 // Exemple affiché tant qu'aucune équipe n'est reliée.
@@ -57,6 +58,7 @@ function draw(el, team, raw, live) {
 
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 14px">Équipe</h1>
+    <button class="panel row between" data-progs style="width:100%;text-align:left;margin-bottom:12px"><div><div style="font-weight:700">Mes programmes</div><div class="muted small">Périodes, créneaux, thèmes de la semaine et vidéos</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
     ${live ? "" : `<p class="notice is-warn">Aperçu avec des fighters d'exemple. Relie ton téléphone à l'équipe avec ton code coach pour voir tes vrais fighters.</p>`}
     ${live && !team.length ? `<section class="panel empty"><h3>Aucun fighter pour l'instant</h3><p class="small">Donne-leur le code d'équipe <b class="num">${esc(raw?.join_code || "")}</b> : ils le saisissent à l'ouverture de l'appli.</p><button class="btn tape-btn" data-copycode>Copier le code</button></section>` : ""}
 
@@ -80,6 +82,7 @@ function draw(el, team, raw, live) {
   `;
 
   el.querySelectorAll("[data-f]").forEach((r) => r.addEventListener("click", () => openFighter(team[r.dataset.f], live)));
+  el.querySelector("[data-progs]")?.addEventListener("click", () => openPrograms());
   el.querySelectorAll("[data-copycode]").forEach((b) => b.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(raw?.join_code || ""); toast("Code copié"); } catch { toast("Sélectionne le code pour le copier"); }
   }));
