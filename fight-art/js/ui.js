@@ -72,6 +72,25 @@ export function meter(label, value, target, unit = "") {
   <div class="bar ${over ? "over" : ""}"><i style="width:${pct}%"></i></div></div>`;
 }
 
+// avatar : la photo si elle existe, sinon les initiales
+export function avatarHtml(name = "", photo = "", cls = "avatar") {
+  return photo && /^data:image\/(jpeg|png|webp);base64,/.test(photo)
+    ? `<span class="${cls} has-photo"><img src="${photo}" alt=""></span>`
+    : `<span class="${cls}">${esc(initials(name))}</span>`;
+}
+
+// réduit et recadre une image en carré (JPEG ~20-40 Ko) pour la stocker dans le profil
+export async function squarePhoto(file, size = 256) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    const c = document.createElement("canvas"); c.width = c.height = size;
+    c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+    return c.toDataURL("image/jpeg", 0.82);
+  } finally { URL.revokeObjectURL(url); }
+}
+
 export function initials(name = "") {
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 }

@@ -1,4 +1,4 @@
-import { esc, icon, openSheet, closeSheet, toast, initials, sparkline } from "../ui.js";
+import { esc, icon, openSheet, closeSheet, toast, initials, sparkline, avatarHtml } from "../ui.js";
 import { fmt, readiness, alerts, weeklyLoad, findClass, frDate, isMinor } from "../engine.js";
 import { todayKey, addDays } from "../store.js";
 import { LEVELS } from "../data.js";
@@ -69,7 +69,7 @@ function draw(el, team, raw, live) {
     ${team.length ? `<h2 class="h-sec">Forme du jour</h2>
     <section class="panel">${sorted.map((f) => `
       <div class="fighter-row" role="button" tabindex="0" data-f="${team.indexOf(f)}">
-        <span class="avatar">${esc(initials(f.name.replace("Exemple · ", "")))}</span>
+        ${avatarHtml(f.name.replace("Exemple · ", ""), f.p.photo)}
         <div><div style="font-weight:700">${esc(f.name)}${f.minor ? ` <span class="badge tiny">mineur</span>` : ""}</div><div class="meta small muted">${esc(f.level)}${f.weight ? " · " + fmt(f.weight, 1) + " kg" : ""}${live && !f.checkedIn ? " · pas de check-in aujourd'hui" : ""}</div></div>
         <span class="badge">${f.score === null ? `<span class="muted">–</span>` : `<span class="dot bg-${lvl(f.score)}"></span><b class="num">${f.score}</b>`}</span>
       </div>`).join("")}</section>` : ""}
@@ -86,6 +86,7 @@ function draw(el, team, raw, live) {
 function openFighter(f, live) {
   const gap = f.weight && f.classLimit ? (f.weight / f.classLimit - 1) * 100 : null;
   const body = openSheet(f.name, `
+    ${f.p.photo ? `<div style="margin-bottom:12px">${avatarHtml(f.name, f.p.photo, "avatar avatar-xl")}</div>` : ""}
     <div class="grid2">
       <div class="panel"><div class="muted tiny">Forme</div><div class="display num ${f.score === null ? "" : lvl(f.score)}" style="font-size:34px">${f.score ?? "–"}</div><div class="tiny muted">${f.trend.length ? "Derniers jours : " + f.trend.join(" · ") : "Aucun check-in récent"}</div></div>
       <div class="panel"><div class="muted tiny">Charge 7 jours</div><div class="display num" style="font-size:34px">${fmt(f.load)}</div><div class="tiny muted">${f.loadPrev ? `${f.load > f.loadPrev ? "+" : ""}${fmt((f.load / f.loadPrev - 1) * 100)} % vs semaine passée` : "Pas de semaine précédente"}</div></div>

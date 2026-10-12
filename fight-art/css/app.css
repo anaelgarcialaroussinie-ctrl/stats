@@ -414,3 +414,10 @@ a.icon-btn { color: var(--ink); text-decoration: none; }
 .choice b { font-size: 18px; }
 .choice:active, .choice:hover { border-color: var(--tape); }
 .scen .field { margin-top: 8px; }
+
+.avatar-btn { border: 0; padding: 0; background: none; border-radius: 50%; cursor: pointer; }
+.avatar.has-photo { overflow: hidden; padding: 0; background: var(--surface-2); }
+.avatar.has-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-xl { width: 88px !important; height: 88px !important; font-size: 30px; }
+.photo-edit { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.photo-edit label.btn { cursor: pointer; }

@@ -1,5 +1,5 @@
 import { store, todayKey } from "./store.js";
-import { esc, icon, openSheet, closeSheet, toast, initials } from "./ui.js";
+import { esc, icon, openSheet, closeSheet, toast, initials, avatarHtml, squarePhoto } from "./ui.js";
 import { renderOnboarding } from "./views/onboarding.js";
 import { renderToday } from "./views/today.js";
 import { renderNutrition } from "./views/nutrition.js";
@@ -63,7 +63,7 @@ function render(keepScroll = false) {
     <main class="screen">
       <header class="topbar">
         <div class="brand"><img class="brand-mark" src="icons/icon-192.png" alt="" aria-hidden="true"><span>Fight Art Performance</span></div>
-        <div class="row" style="gap:8px"><button class="icon-btn" data-assistant aria-label="Assistant" style="background:var(--tape);color:var(--tape-ink)">${icon("chat")}</button><button class="avatar" data-profile aria-label="Mon profil">${esc(initials(p.name))}</button></div>
+        <div class="row" style="gap:8px"><button class="icon-btn" data-assistant aria-label="Assistant" style="background:var(--tape);color:var(--tape-ink)">${icon("chat")}</button><button class="avatar-btn" data-profile aria-label="Mon profil">${avatarHtml(p.name, p.photo)}</button></div>
       </header>
       ${window.FAP_PREVIEW ? `<p class="notice is-warn small" style="margin-bottom:14px">Aperçu de démonstration : le scan, la recherche d'aliments, l'équipe et l'assistant fonctionnent dans la version en ligne de l'appli.</p>` : ""}
       <div data-view></div>
@@ -88,6 +88,13 @@ function openProfile() {
   const cl = findClass(p);
   const dayChips = (name) => `<div class="chips">${DAYS.map((d, i) => `<button type="button" class="chip" data-day="${name}" data-i="${i}" aria-pressed="${p[name].includes(i)}">${d}</button>`).join("")}</div>`;
   const body = openSheet(p.name, `
+    <div class="photo-edit">
+      <span data-photo-view>${avatarHtml(p.name, p.photo, "avatar avatar-xl")}</span>
+      <div class="stack" style="gap:8px">
+        <label class="btn small">${icon("camera")} ${p.photo ? "Changer ma photo" : "Ajouter une photo"}<input type="file" accept="image/*" data-photo hidden></label>
+        ${p.photo ? `<button type="button" class="btn ghost small" data-photo-del>Retirer la photo</button>` : ""}
+      </div>
+    </div>
     <form class="stack" data-prof>
       <div class="grid2">
         <label class="field"><span>Poids (kg)</span><input class="input num" name="weight" inputmode="decimal" value="${p.weight ?? ""}"></label>
@@ -117,6 +124,16 @@ function openProfile() {
       <button class="btn ghost block" data-export>Exporter mes données</button>
       <button class="btn ghost block" data-reset style="color:var(--bad)">${sync.connected() ? "Me déconnecter de ce téléphone" : "Effacer mes données sur ce téléphone"}</button>
     </div>`);
+  const setPhoto = (photo) => {
+    p.photo = photo;
+    store.update((s) => { s.profile = { ...s.profile, photo }; if (!photo) delete s.profile.photo; });
+    closeSheet(); toast(photo ? "Photo enregistrée" : "Photo retirée"); render(); openProfile();
+  };
+  body.querySelector("[data-photo]").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try { setPhoto(await squarePhoto(file)); } catch { toast("Image illisible : essaie une autre photo"); }
+  });
+  body.querySelector("[data-photo-del]")?.addEventListener("click", () => setPhoto(""));
   const f = body.querySelector("[data-prof]");
   f.addEventListener("click", (e) => {
     const b = e.target.closest("[data-day]"); if (!b) return;
@@ -128,7 +145,7 @@ function openProfile() {
     e.preventDefault();
     const n = (x) => (f[x].value ? Number(String(f[x].value).replace(",", ".")) : null);
     Object.assign(p, { weight: n("weight"), height: n("height"), reach: n("reach"), birthYear: n("birthYear"), level: Number(f.level.value), goal: f.goal.value, competitionDate: f.competitionDate.value, equipment: f.equipment.value, trackCycle: f.trackCycle?.checked || false });
-    store.update((s) => { s.profile = p; });
+    store.update((s) => { s.profile = { ...p, photo: s.profile.photo }; if (!s.profile.photo) delete s.profile.photo; });
     closeSheet(); toast("Profil mis à jour"); render();
   });
   body.querySelector("[data-install]").addEventListener("click", () => { closeSheet(); installHint(true); });
