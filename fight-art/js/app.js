@@ -1,6 +1,8 @@
 import { store, todayKey } from "./store.js";
 import { esc, icon, openSheet, closeSheet, toast, initials, avatarHtml, squarePhoto, cropImage, openCropper } from "./ui.js";
 import { profileCard, badgePicker, MAX_BADGES, openProfileView, openTeamProfiles } from "./views/identity.js";
+import { openReminders } from "./views/reminders-view.js";
+import { startLocalReminders } from "./reminders.js";
 import { openModelSearch } from "./views/models.js";
 import { renderOnboarding } from "./views/onboarding.js";
 import { renderToday } from "./views/today.js";
@@ -95,6 +97,7 @@ function openProfile() {
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px">
       <button type="button" class="btn ghost small" data-asseen>Voir mon profil comme l'équipe</button>
       <button type="button" class="btn ghost small" data-team-profiles>Profils de l'équipe</button>
+      <button type="button" class="btn ghost small" data-reminders>${icon("timer")} Mes rappels</button>
     </div>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin:12px 0 4px">
       <label class="btn small">${icon("camera")} Photo<input type="file" accept="image/*" data-photo hidden></label>
@@ -155,6 +158,7 @@ function openProfile() {
   };
   body.querySelector("[data-asseen]").addEventListener("click", () => { const q = store.get().profile || {}; openProfileView({ me: true, name: q.name, role: q.role, photo: q.photo, banner: q.banner, badges: q.badges || [], styleName: q.styleName, favFighters: store.get().favFighters || [] }); });
   body.querySelector("[data-team-profiles]").addEventListener("click", openTeamProfiles);
+  body.querySelector("[data-reminders]").addEventListener("click", openReminders);
   body.querySelector("[data-photo]").addEventListener("change", async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const v = await openCropper(file, { w: 256, h: 256, round: true, title: "Ajuster ma photo", quality: 0.82 });
@@ -244,7 +248,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "25";
+const APP_VERSION = "26";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});
@@ -258,3 +262,5 @@ window.FAP_BOOTED = true;
 let lastInbox = 0;
 sync.onChange(() => { const n = sync.cachedInbox().length; if (n !== lastInbox && current === "today" && !document.getElementById("sheet-root").innerHTML && store.get().profile) { lastInbox = n; render(true); } });
 render();
+// rappels programmés : quand l'appli est ouverte, elle sonne elle-même à l'heure prévue
+startLocalReminders((title, body) => toast(body ? `${title} · ${body}` : title));

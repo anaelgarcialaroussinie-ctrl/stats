@@ -120,6 +120,11 @@ export const sync = {
   // cartes de profil de l'équipe (photo, bannière, insignes : rien de privé)
   async profiles() { if (!token) return []; return rpc("fap_profiles", { p_token: token }); },
 
+  // rappels programmés (notifications)
+  async saveReminders(list, tz) { if (!token) return null; return rpc("fap_reminders_save", { p_token: token, p_list: list, p_tz: tz }); },
+  async pushSubscribe(sub) { return rpc("fap_push_subscribe", { p_token: token, p_sub: sub }); },
+  async pushUnsubscribe(endpoint) { return rpc("fap_push_unsubscribe", { p_token: token, p_endpoint: endpoint }); },
+
   // vidéothèque du club (le coach ajoute, tout le monde voit)
   async links() { if (!token) return []; return rpc("fap_links", { p_token: token }); },
   async saveLink(l) { return rpc("fap_link_save", { p_token: token, p_id: l.id || null, p_title: l.title, p_url: l.url, p_topic: l.topic, p_note: l.note || "", p_archived: Boolean(l.archived) }); },

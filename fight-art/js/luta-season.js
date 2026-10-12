@@ -1,9 +1,8 @@
-// Programme Luta Livre adulte 2026-2027 (3 niveaux), aligné semaine par semaine sur le programme MMA,
-// et option drill mouvement (inspiration Ido Portal) par bloc. Généré depuis les programmes du coach.
+// Programme Luta Livre adulte 2026-2027 (3 niveaux), aligné semaine par semaine sur le programme MMA.
+// Généré depuis les programmes du coach.
 export const LUTA_PROGRAM = {
  "title": "Programme Luta Livre adulte 2026-2027",
  "note": "Ordre aligné sur le problème MMA de chaque semaine (10 semaines déplacées par rapport au programme papier).",
- "groundMove": "En Luta, côté sol : roulades avant / arrière / épaule, quadrupédie au sol, relevés techniques, Follow the hands à genoux.",
  "weeks": [
   {
    "n": 1,
@@ -486,55 +485,4 @@ export const LUTA_PROGRAM = {
    "moved": false
   }
  ]
-};
-
-export const MOVE_DRILLS = {
- "1": {
-  "title": "Locomotion de base + Follow the hands",
-  "fond": "Quadrupédies avant / arrière / latéral, garder sa structure",
-  "dev": "Changer de direction au signal du partenaire",
-  "comp": "Suivre les mains en gardant MA distance, pas la sienne"
- },
- "2": {
-  "title": "Jeux de touche (épaules, genoux, dos)",
-  "fond": "Tenter beaucoup, sans peur de rater",
-  "dev": "Chaque touche crée une nouvelle situation",
-  "comp": "Enchaîner sans s'arrêter, sans devenir brouillon"
- },
- "3": {
-  "title": "Réaction au bâton (bambou ou frite de piscine)",
-  "fond": "Esquiver, baisser le niveau, reculer",
-  "dev": "Reconnaître la trajectoire avant le départ",
-  "comp": "Esquiver ET contre-toucher dans la foulée"
- },
- "4": {
-  "title": "Improvisation de locomotion",
-  "fond": "Explorer toutes les familles de déplacements",
-  "dev": "Garder celles qui vont à son corps",
-  "comp": "Construire sa propre « phrase » de mouvement"
- },
- "5": {
-  "title": "Jeux de touche avec feintes",
-  "fond": "Feinter une touche pour voir la réaction",
-  "dev": "Rendre la feinte crédible",
-  "comp": "Feinter pour amener la touche choisie"
- },
- "6": {
-  "title": "Jeux de touche en zone réduite",
-  "fond": "Fermer une porte avec le corps",
-  "dev": "Pousser le partenaire vers un coin",
-  "comp": "Il refuse le coin : changer de jeu sans forcer"
- },
- "7": {
-  "title": "Équilibre et rupture : poutre ou ligne, jeux de poussée, relevés au mur",
-  "fond": "Rester stable sur une ligne",
-  "dev": "Déséquilibrer sans être déséquilibré",
-  "comp": "Rompre et se replacer, au sol comme debout"
- },
- "8": {
-  "title": "Softening + shaking, flow libre",
-  "fond": "Relâcher après l'effort",
-  "dev": "Détecter ses zones raides",
-  "comp": "Flow personnel sous fatigue"
- }
 };

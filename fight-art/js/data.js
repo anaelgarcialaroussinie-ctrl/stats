@@ -135,6 +135,21 @@ export const DRILL_GROUPS = [
     ],
   },
   {
+    id: "movement", title: "Mouvement (inspiration Ido Portal)",
+    note: "Inspiré du travail d'Ido Portal avec McGregor et Gunnar Nelson (2015) : locomotion, réactions et relâchement pour garder un corps adaptable. Ce n'est pas du combat : c'est un complément.",
+    drills: [
+      { name: "Marche de l'ours", how: "Mains et pieds au sol, genoux à 5 cm du sol, dos plat. Avant, arrière, de côté." },
+      { name: "Marche du crabe", how: "Face au plafond, hanches hautes. Avant, arrière, puis rotation pour revenir en ours." },
+      { name: "Lizard crawl", how: "Très bas, coude contre le genou du même côté à chaque pas, poitrine près du sol." },
+      { name: "Locomotion avec changements de direction", how: "Enchaîner ours, crabe et lizard en changeant de direction toutes les 3 secondes, sans s'arrêter." },
+      { name: "Roulades avant, arrière et épaule", how: "Menton rentré, dos rond, se relever directement en garde. Lentement au début, sur tapis." },
+      { name: "Équilibre sur une ligne", how: "Marcher sur une ligne au sol (ou une poutre basse) en avant, en arrière, puis en s'accroupissant." },
+      { name: "Follow the hands (à deux)", how: "Le partenaire déplace lentement ses mains vers toi, tu esquives en te déplaçant, en gardant ta distance. Accélérer progressivement." },
+      { name: "Réaction au bâton (à deux)", how: "Le partenaire balaie avec une frite de piscine ou un bâton souple : baisser le niveau, sauter, reculer. Toujours souple, jamais rigide." },
+      { name: "Softening et shaking", how: "En fin de séance : relâcher les épaules, la nuque et les hanches en secouant doucement tout le corps, 1 à 2 minutes." },
+    ],
+  },
+  {
     id: "mma", title: "Transitions MMA",
     drills: [
       { name: "Frappe puis amenée au sol", how: "Jab, direct, changement de niveau sous le contre imaginé." },

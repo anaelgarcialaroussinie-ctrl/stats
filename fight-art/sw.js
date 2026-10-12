@@ -1,5 +1,5 @@
 // Cache hors ligne : l'appli s'ouvre même sans réseau.
-const VERSION = "fap-v25";
+const VERSION = "fap-v26";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/app.css", "./fonts/archivo.ttf",
   "./js/app.js", "./js/store.js", "./js/engine.js", "./js/data.js", "./js/ui.js", "./js/off.js", "./js/sync.js", "./js/config.js",
@@ -18,6 +18,11 @@ const ASSETS = [
   "./js/qualities.js",
   "./js/season.js",
   "./js/luta-season.js",
+  "./js/sound.js",
+  "./js/reminders.js",
+  "./js/meal-data.js",
+  "./js/views/mealplan.js",
+  "./js/views/reminders-view.js",
   "./js/views/video.js",
   "./icons/logo.png", "./js/academy-data.js", "./js/views/coach.js", "./js/views/sessions.js", "./js/views/timer.js",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
@@ -39,4 +44,23 @@ self.addEventListener("fetch", (e) => {
     if (r.ok) { const copy = r.clone(); caches.open(VERSION).then((c) => c.put(e.request, copy)); }
     return r;
   }).catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match("./index.html"))));
+});
+
+// rappels : notification reçue du serveur, même appli fermée
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { title: "Fight Art", body: e.data?.text() || "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Fight Art", {
+    body: d.body || "", icon: "./icons/icon-192.png", badge: "./icons/icon-192.png",
+    tag: d.tag || undefined, data: { url: d.url || "./#today" }, vibrate: [120, 80, 120],
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data?.url || "./#today", self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+    const w = list.find((c) => c.url.startsWith(self.registration.scope));
+    if (w) { w.navigate(url).catch(() => {}); return w.focus(); }
+    return self.clients.openWindow(url);
+  }));
 });

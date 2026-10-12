@@ -3,6 +3,7 @@ import { esc, icon, meter, openSheet, closeSheet, toast, sheetBody } from "../ui
 import { dayPlan, nutritionTargets, dayTotals, frDate, fmt } from "../engine.js";
 import { MEALS, QUICK_FOODS } from "../data.js";
 import { byBarcode, search, startScanner } from "../off.js";
+import { openMealPlan, mealAnswers, dayMeals } from "./mealplan.js";
 
 let viewKey = null;
 
@@ -45,6 +46,9 @@ export function renderNutrition(el, ctx, params = {}) {
       <button class="icon-btn" data-day="1" aria-label="Jour suivant" ${isToday ? "disabled style='opacity:.3'" : ""}>${icon("back", 'style="transform:scaleX(-1)"')}</button>
     </div>
     <section class="panel">${targets}</section>
+    ${(() => { if (!isToday) return ""; const d = mealAnswers() ? dayMeals(key) : null; if (!d) return `<button class="panel row between" data-mealplan style="width:100%;text-align:left;margin-top:12px"><div><div style="font-weight:700">Mon plan repas sur mesure</div><div class="muted small">2 minutes de questions : horaires, goûts, régime. Ensuite, chaque repas avec sa portion du jour.</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>`;
+      const now = new Date().getHours() * 60 + new Date().getMinutes(); const nx = d.meals.find((m) => m.t >= now - 30) || d.meals[0];
+      return `<button class="panel row between" data-mealplan style="width:100%;text-align:left;margin-top:12px"><div style="min-width:0"><div class="tiny muted">Mon plan repas · prochain repas</div><div style="font-weight:700">${esc(nx.label)} · ${nx.time.replace(":", "h")}</div><div class="muted small">${esc(nx.items.map((f) => f.name).join(", "))}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>`; })()}
     <div class="grid2" style="margin-top:12px">
       <button class="btn tape-btn" data-scan>${icon("scan")} Scanner</button>
       <button class="btn ghost" data-add="${mealNow()}">${icon("search")} Rechercher</button>
@@ -59,6 +63,7 @@ export function renderNutrition(el, ctx, params = {}) {
 
   el.querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => { viewKey = addDays(viewKey, Number(b.dataset.day)); if (viewKey > todayKey()) viewKey = todayKey(); ctx.refresh(); }));
   el.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", () => openAdd(key, b.dataset.add, ctx.refresh)));
+  el.querySelector("[data-mealplan]")?.addEventListener("click", () => openMealPlan(ctx.refresh));
   el.querySelector("[data-scan]").addEventListener("click", () => openScan(key, mealNow(), ctx.refresh));
   el.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => {
     store.update((s) => { s.food[key] = (s.food[key] || []).filter((e) => e.id !== b.dataset.del); });

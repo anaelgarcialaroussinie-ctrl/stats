@@ -1,8 +1,8 @@
 // Programme annuel du club (40 semaines) : quelle semaine on est, et la ligne de travail de chaque niveau.
 import { addDays, dayIndex, todayKey } from "./store.js";
 import { sync } from "./sync.js";
-import { LUTA_PROGRAM, MOVE_DRILLS } from "./luta-season.js";
-export { LUTA_PROGRAM, MOVE_DRILLS };
+import { LUTA_PROGRAM } from "./luta-season.js";
+export { LUTA_PROGRAM };
 
 const KEY = "fap:season";
 let season = null;
@@ -45,11 +45,10 @@ export const MMA_CLASSES = ["mma-fond", "mma-dev", "sparring", "team-ven", "team
 // cours concernés par le programme Luta Livre (même numéro de semaine que le MMA)
 export const LUTA_CLASSES = ["ll-fond", "ll-dev", "ll-expert"];
 export const LUTA_LEVEL_LABEL = { fond: "Fondamentaux", dev: "Développement", comp: "Avancé" };
-// la semaine Luta et le drill mouvement du bloc, pour une date
+// la semaine Luta, pour une date
 export function lutaWeek(key = todayKey(), s = season) {
   const sw = seasonWeek(key, s);
   if (!sw?.week) return sw;
-  return { ...sw, luta: LUTA_PROGRAM.weeks[sw.n - 1] || null, move: MOVE_DRILLS[String(sw.week.bloc)] || null };
+  return { ...sw, luta: LUTA_PROGRAM.weeks[sw.n - 1] || null };
 }
-export const moveFor = (sw) => (sw?.week ? MOVE_DRILLS[String(sw.week.bloc)] || null : null);
 export const mondaysFrom = (start, count) => [...Array(count)].map((_, i) => addDays(monday(start), i * 7));
