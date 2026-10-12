@@ -95,7 +95,8 @@ export function openLocalVideos() {
   body.addEventListener("click", async (e) => {
     if (e.target.closest("[data-pick]")) { await pick(); return; }
     if (e.target.closest("[data-grant]")) {
-      try { if ((await root.requestPermission({ mode: "read" })) === "granted") await load(); } catch { toast("Branche le disque dur puis réessaie"); }
+      try { if ((await root.requestPermission({ mode: "read" })) === "granted") await load(); }
+      catch { root = null; body.innerHTML = intro + `<p class="notice is-warn small">L'ancien dossier ne répond plus (disque débranché, ou lettre du disque changée). Choisis-le à nouveau.</p><button class="btn tape-btn block" data-pick style="margin-top:10px">Choisir le dossier des vidéos</button>`; }
       return;
     }
     const pl = e.target.closest("[data-play]");
