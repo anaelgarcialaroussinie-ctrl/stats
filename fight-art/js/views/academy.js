@@ -50,11 +50,11 @@ export function renderAcademy(el, ctx) {
       </div>
     </section>
 
-    <h2 class="h-sec">Systèmes offensifs et défensifs</h2>
+    <h2 class="h-sec">Mes systèmes</h2>
     <section class="panel">
-      <p class="muted small" style="margin-bottom:10px">Pour chaque technique : ce qu'elle ouvre, ce à quoi elle t'expose, et ta réponse quand l'adversaire contre. Construis tes schémas à partir de là.</p>
+      <p class="muted small" style="margin-bottom:10px">Un système, c'est ton plan à l'avance : <b>je fais ceci ; s'il réagit comme ça, je fais cela.</b> Pour chaque technique, regarde d'abord ce qu'elle ouvre et ce qu'elle risque, puis crée ton système.</p>
       <button class="btn tape-btn block" data-explore>${icon("search")} Risques et ouvertures des techniques</button>
-      ${systems.length ? `<div class="stack" style="margin-top:12px">${systems.map((x) => `<details class="sys-card"><summary><span><b>${esc(x.name)}</b><span class="tiny muted" style="display:block">${x.type === "off" ? "Offensif" : "Défensif"} · ${x.branches.length} branche${x.branches.length > 1 ? "s" : ""}</span></span></summary>
+      ${systems.length ? `<div class="stack" style="margin-top:12px">${systems.map((x) => `<details class="sys-card"><summary><span><b>${esc(x.name)}</b><span class="tiny muted" style="display:block">${x.type === "off" ? "Attaque" : "Défense"} · ${x.branches.length} scénario${x.branches.length > 1 ? "s" : ""}</span></span></summary>
         ${systemTree(x)}
         <div class="row" style="margin-top:10px"><button class="btn small" data-drillsys="${x.id}">${icon("play")} Driller</button><button class="btn ghost small" data-editsys="${x.id}">Modifier</button></div></details>`).join("")}</div>` : ""}
       <button class="btn ghost block" data-newsys style="margin-top:10px">${icon("plus")} Créer un système</button>
@@ -91,7 +91,7 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-drill]").forEach((b) => b.addEventListener("click", () => drillCombo(combos.find((c) => c.id === b.dataset.drill))));
   el.querySelectorAll("[data-mod]").forEach((li) => li.addEventListener("click", () => openModule(li.dataset.mod, ctx)));
   el.querySelector("[data-explore]").addEventListener("click", () => openExplorer(null, ctx.refresh));
-  el.querySelector("[data-newsys]").addEventListener("click", () => editSystem(null, ctx.refresh, { root: "double", type: "off" }));
+  el.querySelector("[data-newsys]").addEventListener("click", () => editSystem(null, ctx.refresh));
   el.querySelectorAll("[data-editsys]").forEach((b) => b.addEventListener("click", () => editSystem(systems.find((x) => x.id === b.dataset.editsys), ctx.refresh)));
   el.querySelectorAll("[data-drillsys]").forEach((b) => b.addEventListener("click", () => drillSystem(systems.find((x) => x.id === b.dataset.drillsys))));
   el.querySelectorAll("[data-disc]").forEach((b) => b.addEventListener("click", () => openDiscussion({ tab: b.dataset.disc }, (preset) => editCombo(null, ctx.refresh, preset))));
