@@ -528,3 +528,8 @@ table.stats td.num { white-space: nowrap; }
 .tips.is-warn { border-left-color: var(--warn); }
 .tips.is-bad { border-left-color: var(--bad); }
 .tips h3 { font-size: 15px; }
+.move-opt { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 6px; }
+.move-opt summary { cursor: pointer; list-style: none; }
+.move-opt summary::-webkit-details-marker { display: none; }
+.move-opt summary::before { content: "＋ "; color: var(--tape); font-weight: 800; }
+.move-opt[open] summary::before { content: "－ "; }

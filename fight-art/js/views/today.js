@@ -1,8 +1,9 @@
 import { store, todayKey, addDays, dayIndex } from "../store.js";
 import { DAYS } from "../data.js";
-import { openPlanning, loadThemes, cachedThemes, mondayOf, seasonCard } from "./planning.js";
-import { loadSeason, cachedSeason } from "../season.js";
+import { openPlanning, loadThemes, cachedThemes, mondayOf, seasonCard, lutaCard, moveOption } from "./planning.js";
+import { loadSeason, cachedSeason, lutaWeek, moveFor, levelFor } from "../season.js";
 import { openNote } from "./notes.js";
+import { openProfileById } from "./identity.js";
 import { programWeek, openProgram } from "./stylelab.js";
 import { esc, icon, meter } from "../ui.js";
 import { dayPlan, readinessAdvice, alerts, nutritionTargets, dayTotals, frDate, isMinor } from "../engine.js";
@@ -84,7 +85,7 @@ export function renderToday(el, ctx, params = {}) {
     ${tips.length ? `<section class="panel tips ${tips.some((x) => x.lvl === "bad") ? "is-bad" : tips.some((x) => x.lvl === "warn") ? "is-warn" : ""}"><h3>Conseils du jour</h3><ul class="bul">${tips.map((x) => `<li class="small">${esc(x.t)}</li>`).join("")}</ul></section>` : ""}
     ${compet}
     ${clubCard ? `<section class="panel" style="margin-top:12px"><h3>Au club ${isToday ? "aujourd'hui" : esc(frDate(key, { weekday: "long" }))}</h3>
-      ${clubCard.classes.some((c) => ["mma-fond", "mma-dev", "sparring", "team-ven", "team-sam"].includes(c.id)) ? `<div style="margin-top:10px">${seasonCard(key, p, { compact: true })}</div>` : ""}${clubCard.classes.map((c) => { const t = cachedThemes(mondayOf(key))[c.id]; return `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b><div class="tiny muted">${esc(c.stage)}</div><div class="small" data-theme-for="${c.id}">${t ? `Thème : <b>${esc(t)}</b>` : ""}</div></div><span class="badge num" style="flex:none">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`; }).join("")}
+      ${clubCard.classes.some((c) => ["mma-fond", "mma-dev", "sparring", "team-ven", "team-sam"].includes(c.id)) ? `<div style="margin-top:10px">${seasonCard(key, p, { compact: true })}</div>` : ""}${clubCard.classes.some((c) => ["ll-fond", "ll-dev", "ll-expert"].includes(c.id)) && lutaCard(key, p, { compact: true }) ? `<div style="margin-top:10px">${lutaCard(key, p, { compact: true })}</div>` : ""}${(() => { const sw = lutaWeek(key); const m = moveFor(sw); return m && clubCard.classes.some((c) => c.kind === "tech") ? `<div style="margin-top:10px">${moveOption(sw, levelFor(null, p), { luta: clubCard.classes.some((c) => c.id.startsWith("ll-")) })}</div>` : ""; })()}${clubCard.classes.map((c) => { const t = cachedThemes(mondayOf(key))[c.id]; return `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b><div class="tiny muted">${esc(c.stage)}</div><div class="small" data-theme-for="${c.id}">${t ? `Thème : <b>${esc(t)}</b>` : ""}</div></div><span class="badge num" style="flex:none">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`; }).join("")}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost small" data-planning>Planning du club</button>${isFuture ? "" : `<button class="btn small" data-classnote>${icon("edit")} Ma fiche du cours</button>`}</div></section>` : ""}
     <h2 class="h-sec">${isToday ? "Programme du jour" : isFuture ? "Programme prévu" : "Programme de ce jour"}</h2>
     <section class="panel"><ol class="plan">${items}</ol></section>
@@ -122,8 +123,10 @@ function openThread(otherId, otherName, ctx) {
   const msgs = sync.cachedInbox().filter((m) => m.from_id === otherId || m.to_id === otherId).slice(0, 30).reverse();
   sync.markRead();
   const body = openSheet(otherName, `
+    <button type="button" class="btn ghost small" data-seeprofile style="margin-bottom:10px">Voir le profil de ${esc(otherName)}</button>
     <div class="stack">${msgs.map((m) => `<div class="panel" style="${m.from_id === me ? "margin-left:40px;background:var(--surface-2)" : "margin-right:40px"}"><p style="margin:0">${esc(m.body)}</p><div class="tiny muted" style="margin-top:4px">${m.from_id === me ? "Toi" : esc(m.from_name)} · ${esc(new Date(m.created_at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</div></div>`).join("")}</div>
     <form data-reply style="margin-top:14px"><label class="field"><span>Ta réponse</span><textarea class="input" name="body" rows="3"></textarea></label><button class="btn tape-btn block" style="margin-top:10px">Envoyer</button></form>`);
+  body.querySelector("[data-seeprofile]").addEventListener("click", () => openProfileById(otherId, otherName));
   body.querySelector("[data-reply]").addEventListener("submit", async (e) => {
     e.preventDefault(); const t = e.target.body.value.trim(); if (!t) return;
     try { await sync.send(otherId, t); closeSheet(); toast("Message envoyé"); ctx.refresh(); } catch { toast("Envoi impossible : vérifie ta connexion"); }

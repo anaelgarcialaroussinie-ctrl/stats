@@ -1,5 +1,7 @@
 // Carte de profil : bannière, photo, insignes de style, modèles UFC.
-import { esc, avatarHtml } from "../ui.js";
+import { esc, avatarHtml, openSheet, toast } from "../ui.js";
+import { sync } from "../sync.js";
+import { store } from "../store.js";
 
 export const BADGE_GROUPS = [
   { label: "Discipline", items: [
@@ -38,4 +40,45 @@ export function profileCard(p = {}, { models = [] } = {}) {
 export function badgePicker(selected = []) {
   return BADGE_GROUPS.map((g) => `<div class="tiny muted" style="margin:10px 0 6px;font-weight:700">${esc(g.label)}</div>
     <div class="chips">${g.items.map((b) => `<button type="button" class="chip" data-badge="${b.id}" aria-pressed="${selected.includes(b.id)}">${esc(b.label)}</button>`).join("")}</div>`).join("");
+}
+
+// profils de l'équipe : chacun peut consulter la carte des autres
+let people = null;
+export async function loadProfiles() {
+  if (window.FAP_PREVIEW || !sync.connected()) {
+    const p = store.get().profile || {};
+    people = [{ id: "me", me: true, name: p.name, role: p.role, photo: p.photo, banner: p.banner, badges: p.badges || [], styleName: p.styleName, favFighters: store.get().favFighters || [] }];
+    return people;
+  }
+  try { people = await sync.profiles(); } catch { /* hors ligne */ }
+  return people || [];
+}
+export const cachedProfiles = () => people || [];
+
+export function openProfileView(person, back) {
+  if (!person) return;
+  const body = openSheet(person.me ? "Mon profil (vu par l'équipe)" : person.name, `
+    ${profileCard(person, { models: person.favFighters || [] })}
+    <p class="tiny muted" style="margin-top:10px">${person.role === "coach" ? "Coach du club" : "Fighter du club"}${person.me ? " · c'est ce que voient les autres membres quand ils ouvrent ton profil" : ""}</p>
+    ${back ? `<button class="btn ghost block" data-back style="margin-top:12px">Retour à l'équipe</button>` : ""}`);
+  body.querySelector("[data-back]")?.addEventListener("click", back);
+}
+
+export function openTeamProfiles() {
+  const body = openSheet("Profils de l'équipe", `<p class="muted small">Chargement…</p>`);
+  const draw = (list) => {
+    body.innerHTML = list.length ? `<p class="small muted" style="margin-top:0">Touche un membre pour voir sa carte : photo, bannière, insignes et style.</p>
+      <ul class="list">${list.map((x, i) => `<li role="button" tabindex="0" data-person="${i}">${avatarHtml(x.name || "", x.photo)}<div style="min-width:0;flex:1"><div style="font-weight:700">${esc(x.name || "")}${x.me ? ` <span class="tiny muted">(moi)</span>` : ""}</div><div class="meta">${x.role === "coach" ? "Coach" : "Fighter"}${x.styleName ? " · " + esc(x.styleName) : ""}</div></div></li>`).join("")}</ul>`
+      : `<p class="muted small">Aucun profil pour l'instant.</p>`;
+    body.querySelectorAll("[data-person]").forEach((li) => li.addEventListener("click", () => openProfileView(list[Number(li.dataset.person)], openTeamProfiles)));
+  };
+  if (cachedProfiles().length) draw(cachedProfiles());
+  loadProfiles().then((l) => { if (body.isConnected) draw(l); }).catch(() => toast("Impossible de charger les profils"));
+}
+
+// ouvre le profil d'une personne par son identifiant (messages, etc.)
+export async function openProfileById(id, name) {
+  const list = cachedProfiles().length ? cachedProfiles() : await loadProfiles();
+  const person = list.find((x) => x.id === id);
+  if (person) openProfileView(person); else toast(`Profil de ${name || "ce membre"} indisponible`);
 }

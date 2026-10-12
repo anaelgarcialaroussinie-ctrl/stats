@@ -117,6 +117,9 @@ export const sync = {
   async myQuestions() { if (!token) return []; return rpc("fap_my_questions", { p_token: token }); },
   async teamQuestions() { if (!token || meta.role !== "coach") return []; return rpc("fap_team_questions", { p_token: token }); },
 
+  // cartes de profil de l'équipe (photo, bannière, insignes : rien de privé)
+  async profiles() { if (!token) return []; return rpc("fap_profiles", { p_token: token }); },
+
   // vidéothèque du club (le coach ajoute, tout le monde voit)
   async links() { if (!token) return []; return rpc("fap_links", { p_token: token }); },
   async saveLink(l) { return rpc("fap_link_save", { p_token: token, p_id: l.id || null, p_title: l.title, p_url: l.url, p_topic: l.topic, p_note: l.note || "", p_archived: Boolean(l.archived) }); },

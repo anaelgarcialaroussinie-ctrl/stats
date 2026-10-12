@@ -1,6 +1,6 @@
 import { store, todayKey } from "./store.js";
 import { esc, icon, openSheet, closeSheet, toast, initials, avatarHtml, squarePhoto, cropImage, openCropper } from "./ui.js";
-import { profileCard, badgePicker, MAX_BADGES } from "./views/identity.js";
+import { profileCard, badgePicker, MAX_BADGES, openProfileView, openTeamProfiles } from "./views/identity.js";
 import { openModelSearch } from "./views/models.js";
 import { renderOnboarding } from "./views/onboarding.js";
 import { renderToday } from "./views/today.js";
@@ -92,6 +92,10 @@ function openProfile() {
   const dayChips = (name) => `<div class="chips">${DAYS.map((d, i) => `<button type="button" class="chip" data-day="${name}" data-i="${i}" aria-pressed="${p[name].includes(i)}">${d}</button>`).join("")}</div>`;
   const body = openSheet("Mon profil", `
     <div data-card>${profileCard(p, { models: store.get().favFighters || [] })}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button type="button" class="btn ghost small" data-asseen>Voir mon profil comme l'équipe</button>
+      <button type="button" class="btn ghost small" data-team-profiles>Profils de l'équipe</button>
+    </div>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin:12px 0 4px">
       <label class="btn small">${icon("camera")} Photo<input type="file" accept="image/*" data-photo hidden></label>
       <label class="btn small">${icon("camera")} Bannière<input type="file" accept="image/*" data-banner hidden></label>
@@ -149,6 +153,8 @@ function openProfile() {
     store.update((s) => { s.profile = { ...s.profile, [key]: val }; if (!val) delete s.profile[key]; });
     closeSheet(); toast(msg); render(); openProfile();
   };
+  body.querySelector("[data-asseen]").addEventListener("click", () => { const q = store.get().profile || {}; openProfileView({ me: true, name: q.name, role: q.role, photo: q.photo, banner: q.banner, badges: q.badges || [], styleName: q.styleName, favFighters: store.get().favFighters || [] }); });
+  body.querySelector("[data-team-profiles]").addEventListener("click", openTeamProfiles);
   body.querySelector("[data-photo]").addEventListener("change", async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const v = await openCropper(file, { w: 256, h: 256, round: true, title: "Ajuster ma photo", quality: 0.82 });
@@ -238,7 +244,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "24";
+const APP_VERSION = "25";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});
