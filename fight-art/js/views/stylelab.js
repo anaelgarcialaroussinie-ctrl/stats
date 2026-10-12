@@ -7,6 +7,7 @@ import { openDiscussion } from "./discussion.js";
 import { openExplorer } from "./systems.js";
 import { QUESTIONS } from "../discussion-data.js";
 import { badgeLabel } from "./identity.js";
+import { computeQualities, PRIORITY_TEXT } from "../qualities.js";
 
 const KEYS = ["slpm", "sapm", "acc", "head", "body", "leg", "dist", "clinch", "ground", "td15", "tdacc", "tdd", "ctrl", "sub15", "kd15", "sdef"];
 const mean = (xs) => { const v = xs.filter((x) => x != null && !isNaN(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
@@ -54,7 +55,7 @@ export async function blend(names) {
 }
 
 // programme de 6 semaines pour construire le style
-export function buildProgram(B, p) {
+export function buildProgram(B, p, prog = null, qual = null) {
   const A = ARCH[B.primary], S2 = B.secondary ? ARCH[B.secondary] : null;
   const ideas = inspirations(B.b, B.a);
   const q = (n) => QUESTIONS.findIndex((x) => x.name === n);
@@ -72,17 +73,40 @@ export function buildProgram(B, p) {
     { title: "Mise en situation", goal: "Tout mettre en sparring à thème, contre des partenaires de styles différents.", pillar: pillar(0), drills: A.drills[0], q: q(pick(qs, 2)), w: pick(ws, 1), t: pick(ts, 2), spar: sp[2] },
     { title: "Bilan", goal: "Sparring libre, puis bilan avec ton coach : ce qui marche, ce qui reste à travailler. Mets tes fiches à jour.", pillar: "", drills: A.drills[0], q: q(pick(qs, 0)), w: pick(ws, 2), t: pick(ts, 2), spar: sp[2] },
   ];
-  return weeks.map((w, i) => ({
-    ...w, n: i + 1,
-    tasks: [
-      `Drills solo « ${w.drills} », 3 fois 20 minutes`,
-      ...(w.q >= 0 ? [`Combinaison « ${QUESTIONS[w.q].name} » : 3 × 3 min au sac ou en shadow`] : []),
-      ...(w.w ? [`Arme « ${WNAME[w.w] || w.w} » : 50 répétitions sur pao, puis dans la combinaison`] : []),
+  // adaptation : chaque semaine tient compte du bilan de la précédente et du profil athlétique
+  const fbAll = prog?.feedback || {};
+  const doneAll = prog?.done || {};
+  for (let i = 1; i < weeks.length; i++) {
+    const fb = fbAll[`w${i}`]; const prevW = weeks[i - 1]; const w = weeks[i];
+    w.why = [];
+    if (!fb) continue;
+    const it = fb.items || {};
+    if (it.combo === "dur") { w.q = prevW.q; w.regCombo = true; w.why.push("combinaison encore difficile : on la reprend"); }
+    if (it.weapon === "dur" && prevW.w) { w.w = prevW.w; w.regWeapon = true; w.why.push("arme pas encore en place : on l'isole"); }
+    if (it.system === "dur") { w.t = prevW.t; w.why.push("système à consolider"); }
+    if (it.spar === "dur") { w.spar = prevW.spar; w.sparLight = true; w.why.push("sparring difficile : même thème, intensité niveau 1"); }
+    const prevTasks = prevW.taskCount || 6;
+    const doneN = Object.keys(doneAll).filter((k) => k.startsWith(`w${i}-`) && doneAll[k]).length;
+    if (Number(fb.energy) <= 2 || doneN / prevTasks < 0.5) { w.light = true; w.why.push(Number(fb.energy) <= 2 ? "énergie basse : semaine allégée" : "semaine précédente peu faite : semaine allégée"); }
+    if (Number(fb.energy) >= 4 && Object.values(it).every((v) => v === "ok") && Object.keys(it).length) { w.challenge = true; w.why.push("tout est passé : défi ajouté"); }
+  }
+  const gaps = qual?.gaps || [];
+  const tech = gaps.find((g) => g.key === "tech");
+  return weeks.map((w, i) => {
+    const tasks = [
+      `Drills solo « ${w.drills} », ${w.light ? "2" : "3"} fois 20 minutes`,
+      ...(w.q >= 0 ? [w.regCombo ? `Combinaison « ${QUESTIONS[w.q].name} » en régression : shadow lent, puis pao, 5 × 2 min` : `Combinaison « ${QUESTIONS[w.q].name} » : 3 × 3 min au sac ou en shadow`] : []),
+      ...(w.w && !w.light ? [w.regWeapon ? `Isoler l'arme « ${WNAME[w.w] || w.w} » : 3 × 20 répétitions lentes, puis rapides sur pao` : `Arme « ${WNAME[w.w] || w.w} » : 50 répétitions sur pao, puis dans la combinaison`] : []),
       `Système à construire ou compléter : ${TNAME[w.t] || w.t}`,
-      `Au sparring : ${w.spar}`,
+      `Au sparring : ${w.spar}${w.sparLight ? " (intensité niveau 1)" : ""}`,
+      ...(qual?.priority && !w.light ? [`Prépa physique : ${PRIORITY_TEXT[qual.priority]}`] : []),
+      ...(tech && i % 2 === 0 ? [`Ta lacune : ${tech.text} Reprends la plus difficile en drill 10 min, 2 fois.`] : []),
+      ...(w.challenge ? [`Défi : place l'arme « ${WNAME[pick(ws, Math.min(ws.length - 1, 2))] || ""} » en sparring technique au moins 3 fois`] : []),
       i === 0 ? "Fiche technique : les points importants du style" : i === 5 ? "Fiche bilan : ce qui marche, ce qui reste" : "Mettre à jour ta fiche de la semaine",
-    ],
-  }));
+    ];
+    w.taskCount = tasks.length;
+    return { ...w, n: i + 1, tasks };
+  });
 }
 const WNAME = { lhookend: "Crochet en fin de combinaison", checkhook: "Check hook", liver: "Crochet au foie", highkick: "High kick", qmark: "Point d'interrogation", switch: "Switch kick", kneeclinch: "Genou au clinch", elbow: "Coude", uppercut: "Uppercut", double: "Double-leg", guillotine: "Guillotine" };
 const TNAME = { jab: "Jab", cross: "Direct", calf: "Low kick au mollet", lowkick: "Low kick", clinch: "Entrée au clinch", bodylock: "Ceinture arrière", double: "Double-leg", single: "Single-leg", gnp: "Ground and pound", frontheadlock: "Front headlock", back: "Prise de dos", rnc: "Étranglement arrière" };
@@ -91,21 +115,25 @@ export async function openProgram(style, onTrap, after, startWeek = null) {
   const body = openSheet("Programme du style", `<p class="muted small">Préparation…</p>`);
   let B; try { B = await blend(style.fighters); } catch { body.innerHTML = `<p class="notice is-warn small">Impossible de charger les données UFC. Vérifie ta connexion.</p>`; return; }
   const p = store.get().profile || {};
-  const weeks = buildProgram(B, p);
   const A = ARCH[B.primary];
   const prog = store.get().program;
+  const qual = computeQualities(p, store.get());
   const active = prog?.styleId === style.id;
   const cur = active ? Math.min(6, Math.max(1, Math.floor((new Date(todayKey() + "T12:00:00") - new Date(prog.start + "T12:00:00")) / (7 * 86400000)) + 1)) : null;
   let open = startWeek || cur || 1;
   const draw = () => {
-    const done = store.get().program?.styleId === style.id ? store.get().program.done || {} : {};
+    const pr = store.get().program?.styleId === style.id ? store.get().program : null;
+    const weeks = buildProgram(B, p, pr, qual);
+    const done = pr ? pr.done || {} : {};
     body.innerHTML = `
       <div class="faces-row" style="margin-bottom:8px">${B.fs.map((f) => faceSlot(f.n)).join("")}</div>
       <h3 class="display" style="font-size:24px">${esc(style.name)}</h3>
       <p class="small muted">6 semaines pour construire ce style, en plus de tes cours au club. ${active ? `Programme en cours : semaine ${cur} sur 6.` : ""}</p>
-      <div class="panel small" style="padding:12px;margin-top:8px"><b>Prépa physique du style</b> · ${esc(SC_FOCUS[B.primary])}</div>
+      <div class="panel small" style="padding:12px;margin-top:8px"><b>Prépa physique du style</b> · ${esc(SC_FOCUS[B.primary])}${qual.priority ? `<div style="margin-top:6px"><b>Ton profil</b> · ${esc(PRIORITY_TEXT[qual.priority])}</div>` : ""}</div>
+      <p class="tiny muted" style="margin-top:8px">Le programme évolue : fais le bilan à la fin de chaque semaine, la semaine suivante s'adapte à ce qui est passé et à ce qui reste difficile, à ton énergie et à tes tests.</p>
       ${weeks.map((w) => { const n = w.tasks.filter((_, k) => done[`w${w.n}-${k}`]).length; return `<details class="sys-card" style="margin-top:8px" ${w.n === open ? "open" : ""}>
         <summary><span><b>Semaine ${w.n} · ${esc(w.title)}</b>${cur === w.n ? ` <span class="insigne">en cours</span>` : ""}<span class="tiny muted" style="display:block">${n}/${w.tasks.length} fait</span></span></summary>
+        ${w.why?.length ? `<p class="notice is-warn small" style="margin:8px 0">Adaptée : ${esc(w.why.join(" · "))}</p>` : ""}
         <p class="small" style="margin:8px 0">${esc(w.goal)}</p>
         ${w.pillar ? `<p class="tiny muted" style="margin:0 0 8px">Pilier visé : ${esc(w.pillar.replace(/\bIl /g, "Le style ").replace(/ il /g, " le style "))}</p>` : ""}
         <div class="stack" style="gap:6px">${w.tasks.map((t, k) => `<label class="row small" style="align-items:flex-start;gap:10px"><input type="checkbox" data-task="w${w.n}-${k}" ${done[`w${w.n}-${k}`] ? "checked" : ""} ${active ? "" : "disabled"} style="width:20px;height:20px;flex:none;margin-top:1px"><span>${esc(t)}</span></label>`).join("")}</div>
@@ -113,6 +141,7 @@ export async function openProgram(style, onTrap, after, startWeek = null) {
           ${w.q >= 0 ? `<button class="btn ghost small" data-q="${w.q}">La combinaison</button>` : ""}
           ${w.w ? `<button class="btn ghost small" data-go="w|${w.w}">L'arme</button>` : ""}
           <button class="btn ghost small" data-go="t|${w.t}">Le système</button>
+          ${active && w.n <= (cur || 1) ? `<button class="btn small" data-bilan="${w.n}">${pr?.feedback?.["w" + w.n] ? "Revoir le bilan" : "Bilan de la semaine"}</button>` : ""}
         </div>
       </details>`; }).join("")}
       <div class="stack" style="margin-top:16px">
@@ -127,6 +156,7 @@ export async function openProgram(style, onTrap, after, startWeek = null) {
     open = Number(t.dataset.task.slice(1).split("-")[0]); draw(); after?.();
   });
   body.addEventListener("click", (e) => {
+    const bl = e.target.closest("[data-bilan]"); if (bl) { openBilan(style, Number(bl.dataset.bilan), () => openProgram(style, onTrap, after, Number(bl.dataset.bilan) + 1)); return; }
     const g = e.target.closest("[data-go]"); if (g) { const [type, id] = g.dataset.go.split("|"); if (type === "w") openDiscussion({ w: id }, onTrap); if (type === "t") openExplorer(id, after); return; }
     const q = e.target.closest("[data-q]"); if (q) { openDiscussion({ q: Number(q.dataset.q) }, onTrap); return; }
     if (e.target.closest("[data-start]")) {
@@ -138,6 +168,28 @@ export async function openProgram(style, onTrap, after, startWeek = null) {
     if (sp) { if (!sp.dataset.armed) { sp.dataset.armed = "1"; sp.textContent = "Confirmer l'arrêt"; return; } store.update((st) => { delete st.program; }); toast("Programme arrêté"); closeSheet(); after?.(); }
   });
   draw();
+}
+
+// bilan de fin de semaine : ce qui est passé, ce qui reste difficile, l'énergie
+function openBilan(style, n, back) {
+  const prev = store.get().program?.feedback?.[`w${n}`] || {};
+  const v = { items: { ...(prev.items || {}) }, energy: prev.energy || 3, note: prev.note || "" };
+  const ITEMS = [["combo", "La combinaison"], ["weapon", "L'arme décisive"], ["system", "Le système"], ["spar", "Le thème de sparring"]];
+  const body = openSheet(`Bilan · semaine ${n}`, `
+    <p class="small muted">Sois honnête : la semaine suivante s'adapte à tes réponses.</p>
+    ${ITEMS.map(([k, l]) => `<div style="margin-top:12px"><div class="small" style="font-weight:700;margin-bottom:6px">${l}</div><div class="chips"><button type="button" class="chip" data-it="${k}" data-v="ok" aria-pressed="${v.items[k] === "ok"}">Ça passe</button><button type="button" class="chip" data-it="${k}" data-v="dur" aria-pressed="${v.items[k] === "dur"}">Encore difficile</button></div></div>`).join("")}
+    <div style="margin-top:14px"><div class="small" style="font-weight:700;margin-bottom:6px">Ton énergie cette semaine</div><div class="chips">${[1, 2, 3, 4, 5].map((x) => `<button type="button" class="chip" data-en="${x}" aria-pressed="${v.energy === x}">${x}</button>`).join("")}</div><p class="hint">1 = vidé, 5 = en pleine forme.</p></div>
+    <label class="field" style="margin-top:10px"><span>Ce que tu retiens (facultatif)</span><textarea class="input" data-note rows="3">${esc(v.note)}</textarea></label>
+    <button class="btn tape-btn block" data-save style="margin-top:14px">Enregistrer le bilan</button>`);
+  body.addEventListener("click", (e) => {
+    const it = e.target.closest("[data-it]"); if (it) { v.items[it.dataset.it] = it.dataset.v; body.querySelectorAll(`[data-it="${it.dataset.it}"]`).forEach((b) => b.setAttribute("aria-pressed", b === it)); return; }
+    const en = e.target.closest("[data-en]"); if (en) { v.energy = Number(en.dataset.en); body.querySelectorAll("[data-en]").forEach((b) => b.setAttribute("aria-pressed", b === en)); return; }
+    if (e.target.closest("[data-save]")) {
+      v.note = body.querySelector("[data-note]").value.trim(); v.date = todayKey();
+      store.update((st) => { st.program = { ...st.program, feedback: { ...(st.program?.feedback || {}), [`w${n}`]: v } }; });
+      toast(n < 6 ? `Bilan enregistré : la semaine ${n + 1} s'adapte` : "Bilan enregistré"); back?.();
+    }
+  });
 }
 
 // semaine en cours du programme actif (pour l'accueil)

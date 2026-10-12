@@ -113,6 +113,7 @@ export const sync = {
 
   // assistant
   async ask(topic, body, share) { await sync.push(); return rpc("fap_ask", { p_token: token, p_topic: topic, p_body: body, p_share: share }); },
+  async askFrames(topic, body, share, frames) { await sync.push(); return rpc("fap_ask_frames", { p_token: token, p_topic: topic, p_body: body, p_share: share, p_frames: frames }); },
   async myQuestions() { if (!token) return []; return rpc("fap_my_questions", { p_token: token }); },
   async teamQuestions() { if (!token || meta.role !== "coach") return []; return rpc("fap_team_questions", { p_token: token }); },
 

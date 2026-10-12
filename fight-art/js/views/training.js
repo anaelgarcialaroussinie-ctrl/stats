@@ -7,7 +7,9 @@ import { openBlock, openLog } from "./sessions.js";
 import { guideInline } from "../drill-guides.js";
 import { EX, PREHAB, scPhase } from "../sc-data.js";
 import { openPrehab } from "./sessions.js";
+import { computeQualities, PRIORITY_TEXT } from "../qualities.js";
 import { openPlanning } from "./planning.js";
+import { openVideoCoach } from "./video.js";
 
 const LEVEL_PRIORITIES = {
   1: ["Chutes et relevé technique", "Garde et déplacements", "Jab, direct, défense de base", "Sprawl, double-leg, single-leg", "Positions : montée, contrôle latéral, dos, garde", "Sorties : shrimp et pont", "Étranglement arrière et guillotine"],
@@ -34,6 +36,7 @@ export function renderTraining(el, ctx) {
 
     ${strength ? `<section class="panel row between" style="margin-top:14px"><div><div style="font-weight:700">${esc(strength.title)}</div><div class="muted small">${esc(strength.detail)}</div></div><button class="btn small" data-strength>Ouvrir</button></section>` : ""}
 
+    <button class="panel row between" data-videocoach style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Analyse vidéo de ta posture</div><div class="muted small">Garde, posture de lutte, technique : mesures automatiques et avis du coach perso</div></div>${icon("camera", 'style="width:22px;height:22px;flex:none"')}</button>
     <button class="panel row between" data-planning style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Planning du club</div><div class="muted small">Horaires, contenu des cours et thème de la semaine</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
 
     <h2 class="h-sec">Prépa physique</h2>
@@ -41,6 +44,9 @@ export function renderTraining(el, ctx) {
       <p class="small" style="margin:0 0 8px">Priorité à la force et à l'explosivité, pas à la musculation. Chaque séance : explosivité, force, spécifique MMA, et prévention ciblée si une zone est fragile. Les exercices qui sollicitent une zone douloureuse sont remplacés automatiquement.</p>
       <div class="row" style="gap:6px;flex-wrap:wrap"><span class="badge tiny">Lourd : force maximale</span><span class="badge tiny">Rapide : puissance et vitesse</span><span class="badge tiny">Volume : une jambe, structure, prévention</span></div>
       <p class="tiny muted" style="margin:8px 0 0">Phase actuelle : ${esc(scPhase(p.competitionDate ? Math.round((new Date(p.competitionDate + "T12:00:00") - new Date(key + "T12:00:00")) / 86400000) : null).label)}${zonesMine.length ? ` · zones prises en compte : ${esc(zonesMine.join(", ").toLowerCase())}` : " · aucune zone fragile déclarée (profil)"}</p>
+      ${(() => { const q = computeQualities(p, st); return `<h3 class="sys-h" style="margin-top:12px">Ton profil athlétique</h3>
+        ${q.data ? `${q.strengths.length ? `<div class="small"><b>Points forts</b><ul class="bul">${q.strengths.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>` : ""}${q.gaps.length ? `<div class="small" style="margin-top:6px"><b>À développer</b><ul class="bul">${q.gaps.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>` : ""}${q.priority ? `<p class="notice small" style="margin-top:8px">${esc(PRIORITY_TEXT[q.priority])} Tes séances sont adaptées automatiquement.</p>` : ""}` : `<p class="muted small" style="margin:0">Fais les tests de l'onglet Progrès (saut vertical, tractions, rameur, squat) : l'appli repère tes qualités et tes lacunes et adapte tes séances.</p>`}
+        ${q.notes.map((n) => `<p class="tiny muted" style="margin:6px 0 0">${esc(n)}</p>`).join("")}`; })()}
       <h3 class="sys-h" style="margin-top:12px">Zones à renforcer</h3>
       <div class="chips">${Object.keys(PREHAB).map((z) => `<button class="chip" data-prehab="${esc(z)}" aria-pressed="${zonesMine.includes(z)}">${esc(z)}</button>`).join("")}</div>
       <p class="hint">Touche une zone : son programme de renforcement, 10 à 15 minutes, avec les explications et les vidéos.</p>
@@ -71,6 +77,7 @@ export function renderTraining(el, ctx) {
   `;
 
   el.querySelector("[data-planning]").addEventListener("click", () => openPlanning());
+  el.querySelector("[data-videocoach]").addEventListener("click", () => openVideoCoach(ctx.refresh));
   el.querySelectorAll("[data-prehab]").forEach((b) => b.addEventListener("click", () => openPrehab(b.dataset.prehab, ctx.refresh)));
   el.querySelector("[data-strength]")?.addEventListener("click", () => openBlock(key, strength, ctx.refresh, ctx.go));
   el.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {

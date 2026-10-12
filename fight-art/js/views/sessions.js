@@ -2,6 +2,7 @@
 import { store, todayKey, uid } from "../store.js";
 import { STRENGTH, MOBILITY, MOVEMENT, PAIN_ZONES } from "../data.js";
 import { EX, SUBS, PREHAB, WARMUP, PAIN_RULE, scPhase } from "../sc-data.js";
+import { computeQualities } from "../qualities.js";
 import { esc, icon, openSheet, closeSheet, toast, scale } from "../ui.js";
 import { readiness, readinessAdvice, suggestedLoad, isMinor, fmt, brzycki } from "../engine.js";
 import { guideInline } from "../drill-guides.js";
@@ -158,10 +159,17 @@ export function buildStrength(p, st, key, block) {
     { key: "strength", title: "2 · Force", hint: block.kind === "vitesse" ? "Charges modérées, vitesse maximale. La série s'arrête quand la vitesse baisse." : "Garde 2 répétitions en réserve. Technique parfaite avant la charge.", items: base.strength.map((i) => resolve(i, "strength")).filter(Boolean) },
     { key: "mma", title: "3 · Spécifique MMA", hint: "Nuque, grip, tronc, adducteurs, ischio-jambiers : ce qui protège et ce qui sert au combat.", items: base.mma.map((i) => resolve(i, "mma")).filter(Boolean) },
   ];
+  // adaptation au profil athlétique (tests, charges, forme)
+  const qual = computeQualities(p, st);
+  const pr = qual.priority;
+  const bump = (sec, pred) => { const it = sections.find((x) => x.key === sec)?.items.find(pred); if (it) it.sets += 1; return it; };
+  if (pr === "force" && block.kind !== "vitesse") { const it = bump("strength", (i) => i.ex.load || true); if (it) changes.push(`${it.ex.name} : une série de plus (priorité force)`); }
+  if (pr === "explo") { sections[0].items.forEach((i) => { i.sets += 1; }); if (sections[0].items.length) changes.push("Explosivité : une série de plus sur chaque exercice (priorité explosivité)"); if (block.kind === "volume" && !sections[0].items.some((i) => i.id === "broad") && !zones.some((z) => EX.broad.zones.includes(z))) { sections[0].items.push({ id: "broad", ex: EX.broad, sets: 3, reps: "3", rest: "90 s" }); changes.push("Saut en longueur ajouté (priorité explosivité)"); } }
+  if (pr === "haut") { const it = bump("strength", (i) => ["pullup", "row", "csrow", "h_pull"].includes(i.id)); if (it) changes.push(`${it.ex.name} : une série de plus (priorité tirage)`); }
   const prev = zones.filter((z) => PREHAB[z]).slice(0, 2);
   if (prev.length) sections.push({ key: "prehab", title: "4 · Prévention ciblée", hint: `Pour ${prev.map((z) => z.toLowerCase()).join(" et ")}.`, items: prev.flatMap((z) => PREHAB[z].items.slice(0, 2).map(([name, dose]) => ({ id: null, name, dose, zone: z }))) });
   const hard = c?.pain && Number(c.painLevel) >= 5;
-  return { S, home, sections, changes, zones, phase, hard, acute };
+  return { S, home, sections, changes, zones, phase, hard, acute, qual };
 }
 
 export function openStrength(key, block, after) {
@@ -192,11 +200,11 @@ export function openStrength(key, block, after) {
     <div class="row" style="gap:6px;flex-wrap:wrap"><span class="badge tiny">${esc(S.focus)}</span><span class="badge tiny">Phase : ${esc(B.phase.label)}</span>${home ? `<span class="badge tiny">Version maison</span>` : ""}</div>
     <p class="muted small" style="margin-top:8px">${esc(S.why)}${block.mode === "light" ? " Forme moyenne aujourd'hui : séries réduites, charges −10 %." : ""}${p.level === 1 ? " Niveau Fondations : technique parfaite avant la charge, descente contrôlée, montée explosive." : ""}</p>
     ${B.phase.id !== "dev" ? `<p class="notice small">${esc(B.phase.text)}</p>` : ""}
-    ${B.changes.length ? `<div class="notice is-warn small"><b>Séance adaptée à ${esc(B.zones.map((z) => z.toLowerCase()).join(", "))}</b><ul class="bul" style="margin-top:6px">${B.changes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${B.changes.length ? `<div class="notice is-warn small"><b>Séance adaptée${B.zones.length ? ` à ${esc(B.zones.map((z) => z.toLowerCase()).join(", "))}` : ""}${B.qual.priority ? `${B.zones.length ? " et" : ""} à ton profil` : ""}</b><ul class="bul" style="margin-top:6px">${B.changes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
     ${B.hard ? `<p class="notice is-alert small">Douleur (${esc(B.acute.join(", ").toLowerCase())}) notée ce matin à 5 sur 10 ou plus : si elle persiste plus de quelques jours, va voir un kiné ou un médecin.</p>` : ""}
     <div class="panel small" style="margin-top:10px;padding:12px"><b>Échauffement</b> · ${esc(WARMUP)}</div>
     ${B.sections.map((sec) => sec.items.length ? `<h3 class="sys-h">${esc(sec.title)}</h3><p class="tiny muted" style="margin:0 0 6px">${esc(sec.hint)}</p><div class="panel" style="padding:4px 16px">${sec.items.map(exHtml).join("")}</div>` : "").join("")}
-    ${block.kind === "volume" ? `<div class="panel" style="margin-top:12px"><h3>Cardio de fin de séance</h3><p class="muted small" style="margin-top:4px">Rameur, ski erg ou vélo : 3 × 5 min au rythme d'un combat, 1 min de repos. Les jours lourd et rapide, pas de cardio long juste après : il réduit les gains de force et de puissance.</p></div>` : ""}
+    ${block.kind === "volume" ? `<div class="panel" style="margin-top:12px"><h3>Cardio de fin de séance</h3><p class="muted small" style="margin-top:4px">${B.qual.priority === "cardio" ? "Priorité endurance : 6 × 1 min fort, 1 min léger, puis 2 × 5 min au rythme d'un combat." : "Rameur, ski erg ou vélo : 3 × 5 min au rythme d'un combat, 1 min de repos."} Les jours lourd et rapide, pas de cardio long juste après : il réduit les gains de force et de puissance.</p></div>` : ""}
     <p class="hint">${esc(PAIN_RULE)}</p>
     <div style="margin-top:16px"><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Intensité ressentie de la séance</span>${rpePicker(rpe)}</div>
     <button class="btn tape-btn block" data-finish style="margin-top:16px">Terminer la séance</button>`);

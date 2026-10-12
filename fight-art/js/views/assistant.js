@@ -3,6 +3,7 @@ import { store } from "../store.js";
 import { esc, icon, toast } from "../ui.js";
 import { sync } from "../sync.js";
 import { isMinor } from "../engine.js";
+import { openVideoCoach } from "./video.js";
 
 export const TOPICS = [
   { id: "technique", label: "Technique", ask: "Ex. Je n'arrive pas à finir mes double-leg contre la cage, je me fais guillotiner.",
@@ -17,6 +18,7 @@ export const TOPICS = [
     now: ["Une routine d'avant combat (échauffement, respiration, mots-clés) aide à retrouver ses repères sous pression.", "Fixe des objectifs de progression (un geste, une situation), pas seulement de résultat.", "Si le moral reste bas plusieurs jours, parles-en à ton coach ou à un professionnel. En cas de détresse, appelle le 3114 (gratuit, 24 h/24)."] },
   { id: "douleur", label: "Douleur, blessure", ask: "Ex. Douleur à l'épaule quand je fais des pompes depuis une semaine.",
     now: ["Évite le mouvement qui fait mal et signale la douleur dans ton check-in : ton programme s'adapte.", "Douleur qui dure plus de quelques jours, gonflement, déformation, perte de force, fourmillements : va voir un médecin ou un kiné.", "Choc à la tête avec maux de tête, vertiges ou nausées : arrête le contact et consulte un médecin dans les 24 à 48 h."] },
+  { id: "video", label: "Analyse vidéo", ask: "Pour une analyse vidéo, utilise le bouton « Analyser une vidéo » ci-dessus.", now: ["Filme-toi en entier, de face puis de profil, avec une bonne lumière.", "Choisis les images clés : garde installée, entrée, fin de technique."] },
   { id: "autre", label: "Autre", ask: "Pose ta question librement.", now: ["Plus tu donnes de détails, plus la réponse sera adaptée."] },
 ];
 
@@ -29,8 +31,10 @@ export function renderAssistant(el, ctx) {
 
   el.innerHTML = `
     <div class="row" style="margin:4px 0 10px"><button class="icon-btn" data-back aria-label="Retour">${icon("back")}</button></div>
-    <h1 class="display">Assistant</h1>
+    <h1 class="display">Coach perso</h1>
     <p class="muted" style="margin-top:8px">Parle de ce qui te bloque : un point technique, une peur, ta nutrition, ta prépa, ton mental. L'assistant connaît ton profil et tes données. Il te répond dans l'appli, en général dans l'heure, entre 8 h et minuit.</p>
+
+    <button class="panel row between" data-video style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Analyser une vidéo</div><div class="muted small">Garde, posture de lutte, technique : le téléphone mesure ta posture, ton coach perso t'explique quoi corriger.</div></div><span class="icon-btn" style="background:var(--tape);color:var(--tape-ink);flex:none">${icon("camera")}</span></button>
 
     <h2 class="h-sec">De quoi veux-tu parler ?</h2>
     <div class="chips">${TOPICS.map((x) => `<button class="chip" data-topic="${x.id}" aria-pressed="${x.id === topic}">${esc(x.label)}</button>`).join("")}</div>
@@ -52,6 +56,7 @@ export function renderAssistant(el, ctx) {
     <div data-list class="stack"><p class="muted small">${live ? "Chargement…" : "Aucune question pour l'instant."}</p></div>
   `;
 
+  el.querySelector("[data-video]").addEventListener("click", () => openVideoCoach(ctx.refresh));
   el.querySelector("[data-back]").addEventListener("click", () => history.length > 1 ? history.back() : ctx.go("today"));
   el.querySelectorAll("[data-topic]").forEach((b) => b.addEventListener("click", () => { topic = b.dataset.topic; ctx.refresh(); }));
   el.querySelector("[data-ask]").addEventListener("submit", async (e) => {

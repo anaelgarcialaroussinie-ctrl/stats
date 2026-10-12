@@ -1,5 +1,5 @@
 // Cache hors ligne : l'appli s'ouvre même sans réseau.
-const VERSION = "fap-v21";
+const VERSION = "fap-v22";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/app.css", "./fonts/archivo.ttf",
   "./js/app.js", "./js/store.js", "./js/engine.js", "./js/data.js", "./js/ui.js", "./js/off.js", "./js/sync.js", "./js/config.js",
@@ -15,6 +15,8 @@ const ASSETS = [
   "./js/views/notes.js",
   "./js/views/stylelab.js",
   "./js/sc-data.js",
+  "./js/qualities.js",
+  "./js/views/video.js",
   "./icons/logo.png", "./js/academy-data.js", "./js/views/coach.js", "./js/views/sessions.js", "./js/views/timer.js",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png",
 ];
