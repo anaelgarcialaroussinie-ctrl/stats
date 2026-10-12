@@ -13,7 +13,7 @@ import { renderCoach } from "./views/coach.js";
 import { renderAcademy } from "./views/academy.js";
 import { renderAssistant } from "./views/assistant.js";
 import { LEVELS, DAYS, DAYS_LONG, CLUB_CLASSES, PARCOURS, PAIN_ZONES, clubDaysOf, hm } from "./data.js";
-import { isMinor, findClass } from "./engine.js";
+import { isMinor, findClass, DAILY_LIFE } from "./engine.js";
 import { sync } from "./sync.js";
 
 const app = document.getElementById("app");
@@ -121,6 +121,7 @@ function openProfile() {
       <label class="field"><span>Niveau</span><select class="input" name="level">${LEVELS.map((l) => `<option value="${l.id}" ${l.id === p.level ? "selected" : ""}>${l.label} · ${l.hint}</option>`).join("")}</select></label>
       <label class="field"><span>Objectif</span><select class="input" name="goal"><option value="perf" ${p.goal === "perf" ? "selected" : ""}>Progresser</option><option value="weight" ${p.goal === "weight" ? "selected" : ""}>Perdre du poids</option><option value="compet" ${p.goal === "compet" ? "selected" : ""}>Préparer un combat</option></select></label>
       <label class="field"><span>Date du combat</span><input class="input" type="date" name="competitionDate" value="${p.competitionDate || ""}"></label>
+      <label class="field"><span>Mon quotidien (hors entraînement)</span><select class="input" name="daily">${DAILY_LIFE.map((d) => `<option value="${d.id}" ${d.id === (p.daily || "sit") ? "selected" : ""}>${esc(d.label)}</option>`).join("")}</select></label>
       <label class="field"><span>Préparation physique</span><select class="input" name="equipment"><option value="gym" ${p.equipment === "gym" ? "selected" : ""}>En salle</option><option value="home" ${p.equipment === "home" ? "selected" : ""}>À la maison</option></select></label>
       <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Mes cours au club</span>
         <div class="chips">${PARCOURS.map((x) => `<button type="button" class="chip" data-parcours="${x.id}">${esc(x.label)}</button>`).join("")}</div>
@@ -200,7 +201,7 @@ function openProfile() {
     e.preventDefault();
     const n = (x) => (f[x].value ? Number(String(f[x].value).replace(",", ".")) : null);
     if (p.classes.length) p.clubDays = clubDaysOf(p);
-    Object.assign(p, { weight: n("weight"), height: n("height"), reach: n("reach"), birthYear: n("birthYear"), level: Number(f.level.value), goal: f.goal.value, competitionDate: f.competitionDate.value, equipment: f.equipment.value, trackCycle: f.trackCycle?.checked || false });
+    Object.assign(p, { weight: n("weight"), height: n("height"), reach: n("reach"), birthYear: n("birthYear"), level: Number(f.level.value), goal: f.goal.value, competitionDate: f.competitionDate.value, equipment: f.equipment.value, daily: f.daily.value, trackCycle: f.trackCycle?.checked || false });
     store.update((s) => { s.profile = { ...p, photo: s.profile.photo, banner: s.profile.banner, badges: s.profile.badges, styleName: s.profile.styleName }; ["photo", "banner"].forEach((k) => { if (!s.profile[k]) delete s.profile[k]; }); });
     closeSheet(); toast("Profil mis à jour"); render();
   });
@@ -249,7 +250,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "32";
+const APP_VERSION = "33";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});

@@ -1,5 +1,5 @@
 import { esc, icon, openSheet, closeSheet, toast, initials, sparkline, avatarHtml } from "../ui.js";
-import { fmt, readiness, alerts, weeklyLoad, findClass, frDate, isMinor } from "../engine.js";
+import { fmt, readiness, alerts, weeklyLoad, findClass, frDate, isMinor, nutritionTargets, dayPlan } from "../engine.js";
 import { todayKey, addDays } from "../store.js";
 import { LEVELS } from "../data.js";
 import { sync } from "../sync.js";
@@ -100,6 +100,7 @@ function openFighter(f, live) {
     </div>
     ${f.alert ? `<p class="notice is-alert" style="margin-top:12px">${esc(f.alert)}</p>` : ""}
     ${(f.st?.combos || []).length ? `<h3 class="h-sec" style="font-size:18px">Ses combos fétiches</h3><ul class="list">${f.st.combos.map((c) => `<li><div><div style="font-weight:650">${esc(c.name)}</div><div class="meta">${esc(c.seq.join(" · "))}${c.when ? " — " + esc(c.when) : ""}</div></div></li>`).join("")}</ul>` : ""}
+    ${(() => { if (f.minor) return ""; const nt = nutritionTargets(f.p, dayPlan(f.p, todayKey(), f.st), f.st); return nt?.kcal ? `<p class="small" style="margin-top:12px">Besoin calorique aujourd'hui : <b>${fmt(nt.kcal)} kcal</b> · repos ${fmt(nt.calc.rmr)} · entraînement ${fmt(nt.calc.trainTotal)}${nt.calc.deficit ? ` · déficit ${fmt(nt.calc.deficit)}` : ""}${nt.calc.missing.length ? " · profil incomplet" : ""}</p>` : ""; })()}
     ${(() => { const c = f.st?.checkins?.[todayKey()]; return c && (c.hr || c.hrv) ? `<p class="small" style="margin-top:12px">Montre ce matin : ${c.hr ? `FC repos <b>${c.hr} bpm</b>${c.hrBase ? ` (moyenne ${c.hrBase})` : ""}` : ""}${c.hr && c.hrv ? " · " : ""}${c.hrv ? `VFC <b>${c.hrv} ms</b>${c.hrvBase ? ` (moyenne ${c.hrvBase})` : ""}` : ""}</p>` : ""; })()}
     ${f.weights?.length > 1 ? `<h3 class="h-sec" style="font-size:18px">Poids</h3>${sparkline(f.weights.slice(-30).map((x) => ({ v: x.kg })), { unit: " kg" })}` : ""}
     ${f.lastSeen ? `<p class="hint">Dernière ouverture de l'appli : ${esc(new Date(f.lastSeen).toLocaleString("fr-FR", { weekday: "long", hour: "2-digit", minute: "2-digit" }))}</p>` : ""}

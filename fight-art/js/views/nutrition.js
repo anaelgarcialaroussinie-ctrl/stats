@@ -25,7 +25,20 @@ export function renderNutrition(el, ctx, params = {}) {
     ? `<p class="muted">Pour les moins de 18 ans, pas d'objectif chiffré : une source de protéines à chaque repas, des féculents selon l'activité, des fruits et des légumes, et de l'eau tout au long de la journée.</p>`
     : `<div class="row between"><h3>${fmt(tot.kcal)} <span class="muted small">/ ${fmt(nt.kcal)} kcal</span></h3><span class="badge">${esc(nt.loadLabel)}</span></div>
        ${meter("Protéines", tot.p, nt.p, " g")}${meter("Glucides", tot.c, nt.c, " g")}${meter("Lipides", tot.f, nt.f, " g")}
-       <p class="hint" style="margin-top:12px">Vise environ ${nt.perMealP} g de protéines par repas, toutes les 3 à 4 heures. Les glucides suivent ta charge d'entraînement du jour.</p>`;
+       <p class="hint" style="margin-top:12px">Vise environ ${nt.perMealP} g de protéines par repas, toutes les 3 à 4 heures. Les glucides suivent ta charge d'entraînement du jour.</p>
+       ${nt.calc.missing.length ? `<p class="notice is-warn small" style="margin-top:10px">Calcul approximatif : renseigne ${nt.calc.missing.map((m) => ({ weight: "ton poids", height: "ta taille", birthYear: "ton année de naissance" })[m]).join(", ")} dans Mon profil.</p>` : ""}
+       ${nt.calc.lowCarb ? `<p class="notice is-warn small" style="margin-top:10px">Grosse journée avec un déficit : les glucides passent sous 3 g par kg. Garde-les surtout avant et après l'entraînement.</p>` : ""}
+       <details style="margin-top:10px"><summary class="small" style="font-weight:700;cursor:pointer">Comment ton besoin est calculé</summary>
+         <table class="stats" style="margin-top:8px"><tbody>
+           <tr><td>Métabolisme de repos</td><td class="num">${fmt(nt.calc.rmr)} kcal</td></tr>
+           <tr><td>Vie quotidienne (${esc(nt.calc.life.label.toLowerCase())})</td><td class="num">+${fmt(nt.calc.lifeKcal)}</td></tr>
+           ${nt.calc.train.map((x) => `<tr><td>${esc(x.name)} · ${x.min} min</td><td class="num">+${fmt(x.kcal)}</td></tr>`).join("")}
+           ${nt.calc.correction ? `<tr><td>Correction selon ta dépense réelle</td><td class="num">${nt.calc.correction > 0 ? "+" : ""}${fmt(nt.calc.correction)}</td></tr>` : ""}
+           ${nt.calc.deficit ? `<tr><td>Objectif perte de poids</td><td class="num">−${fmt(nt.calc.deficit)}</td></tr>` : ""}
+           <tr><td><b>Besoin du jour</b></td><td class="num"><b>${fmt(nt.kcal)} kcal</b></td></tr>
+         </tbody></table>
+         <p class="tiny muted" style="margin-top:8px">Repos : équation de ten Haaf (2014), la plus précise chez les sportifs (méta-analyse, Sports Medicine 2023). Entraînement : Compendium des activités physiques 2024. Perte de poids : environ 0,5 % du poids par semaine, jamais sous 30 kcal par kg de masse maigre après l'entraînement (consensus CIO 2023). Avec au moins 6 pesées sur 2 semaines et tes repas notés 10 jours, ta dépense réelle corrige l'estimation. Une estimation reste à ±10 % : ta courbe de poids tranche.</p>
+       </details>`;
 
   const meals = MEALS.map((m) => {
     const list = entries.filter((e) => e.meal === m.id);
