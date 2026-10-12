@@ -1,14 +1,20 @@
-import { store, todayKey } from "../store.js";
+import { store, todayKey, addDays, dayIndex } from "../store.js";
+import { DAYS } from "../data.js";
 import { esc, icon, meter } from "../ui.js";
 import { dayPlan, readinessAdvice, alerts, nutritionTargets, dayTotals, frDate, isMinor } from "../engine.js";
 import { openCheckin, openBlock } from "./sessions.js";
 import { sync } from "../sync.js";
 import { openSheet, closeSheet, toast } from "../ui.js";
 
-export function renderToday(el, ctx) {
+let selDay = null; // jour affiché (null = aujourd'hui)
+
+export function renderToday(el, ctx, params = {}) {
   const st = store.get();
   const p = st.profile;
-  const key = todayKey();
+  const today = todayKey();
+  if (params.day) selDay = params.day;
+  const key = selDay || today;
+  const isToday = key === today, isFuture = key > today;
   const plan = dayPlan(p, key, st);
   const c = st.checkins[key];
   const r = plan.readiness;
@@ -20,11 +26,19 @@ export function renderToday(el, ctx) {
   const hello = new Date().getHours() < 18 ? "Bonjour" : "Bonsoir";
   const tape = `<div class="tape">
     <div class="tape-row">
-      <div><div class="tape-date">${esc(frDate(key))}</div><div class="tape-title display">${hello} ${esc(p.name)}</div></div>
+      <div><div class="tape-date">${esc(frDate(key))}</div><div class="tape-title display">${isToday ? `${hello} ${esc(p.name)}` : isFuture ? "Ce qui t'attend" : "Ta journée"}</div></div>
       ${r ? `<div class="tape-score display"><b class="num">${r.score}</b><span>forme · ${esc(r.label)}</span></div>` : ""}
     </div></div>`;
 
-  const checkin = c ? "" : `<section class="panel">
+  const monday = addDays(key, -dayIndex(key));
+  const strip = `<div class="daynav">
+      <button class="icon-btn" data-week="-7" aria-label="Semaine précédente">${icon("back")}</button>
+      <div class="daynav-days">${[...Array(7)].map((_, i) => { const k = addDays(monday, i); const pl = dayPlan(p, k, st); const busy = pl.club || pl.kind; return `<button class="dn-day${k === key ? " on" : ""}${k === today ? " today" : ""}" data-day="${k}"><span>${DAYS[i]}</span><b class="num">${Number(k.slice(8))}</b><i class="${pl.club ? "club" : pl.kind ? "sc" : ""}"></i></button>`; }).join("")}</div>
+      <button class="icon-btn" data-week="7" aria-label="Semaine suivante" style="transform:scaleX(-1)">${icon("back")}</button>
+    </div>
+    ${isToday ? "" : `<button class="btn ghost small" data-day="${today}" style="margin:-4px 0 12px">Revenir à aujourd'hui</button>`}`;
+
+  const checkin = c || !isToday ? "" : `<section class="panel">
       <h3>Comment tu te sens ce matin ?</h3>
       <p class="muted small" style="margin:4px 0 12px">30 secondes : sommeil, fatigue, moral, douleurs. Ton programme s'adapte à tes réponses.</p>
       <button class="btn tape-btn block" data-act="checkin">Faire mon check-in</button>
@@ -37,7 +51,7 @@ export function renderToday(el, ctx) {
 
   const items = plan.blocks.map((b) => {
     const isDone = !!done[b.id];
-    const action = b.type === "rest" ? "" : `<button class="go" data-block="${b.id}">${isDone ? "Revoir" : b.type === "club" ? "Noter" : "Commencer"}</button>`;
+    const action = b.type === "rest" ? "" : isFuture ? (["mobility", "movement", "strength"].includes(b.type) ? `<button class="go" data-block="${b.id}">Voir</button>` : `<span class="tiny muted">Prévu</span>`) : `<button class="go" data-block="${b.id}">${isDone ? "Revoir" : b.type === "club" ? "Noter" : "Commencer"}</button>`;
     return `<li class="plan-item ${isDone ? "done" : ""}"><div><div class="t">${esc(b.title)}</div><div class="d">${esc(b.detail)}</div></div>${action}</li>`;
   }).join("");
 
@@ -54,28 +68,33 @@ export function renderToday(el, ctx) {
       <p style="margin:8px 0 12px">${esc(lastMsg.body)}</p>
       <button class="btn ghost small" data-act="reply">Voir et répondre</button></section>` : "";
 
+  const clubCard = plan.blocks.find((b) => b.classes?.length);
   el.innerHTML = `
     ${tape}
-    ${msgHtml}
+    ${strip}
+    ${isToday ? msgHtml : ""}
     ${checkin}
-    ${alertsHtml}
-    ${advice ? `<div class="stack" style="margin-bottom:6px">${advice}</div>` : ""}
+    ${isToday ? alertsHtml : ""}
+    ${isToday && advice ? `<div class="stack" style="margin-bottom:6px">${advice}</div>` : ""}
     ${compet}
-    <button class="panel row between assist-cta" data-act="assistant" style="width:100%;text-align:left;margin-top:12px">
+    ${clubCard ? `<section class="panel" style="margin-top:12px"><h3>Au club ${isToday ? "aujourd'hui" : esc(frDate(key, { weekday: "long" }))}</h3>${clubCard.classes.map((c) => `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b>${c.note ? `<div class="tiny muted">${esc(c.note)}</div>` : ""}</div><span class="badge num">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`).join("")}</section>` : ""}
+    ${isToday ? `<button class="panel row between assist-cta" data-act="assistant" style="width:100%;text-align:left;margin-top:12px">
       <div><div style="font-weight:700">Un blocage, une question ?</div><div class="muted small">Technique, peur, nutrition, prépa, mental : parle à l'assistant.</div></div>
-      <span class="icon-btn" style="background:var(--tape);color:var(--tape-ink);flex:none">${icon("chat")}</span></button>
-    <h2 class="h-sec">Programme du jour</h2>
+      <span class="icon-btn" style="background:var(--tape);color:var(--tape-ink);flex:none">${icon("chat")}</span></button>` : ""}
+    <h2 class="h-sec">${isToday ? "Programme du jour" : isFuture ? "Programme prévu" : "Programme de ce jour"}</h2>
     <section class="panel"><ol class="plan">${items}</ol></section>
-    <h2 class="h-sec">Nutrition</h2>
+    ${isToday ? `<h2 class="h-sec">Nutrition</h2>
     <section class="panel">${food}
       <button class="btn ghost block" data-act="food" style="margin-top:14px">${icon("plus")} Ajouter un repas</button>
-    </section>
-    ${c ? `<button class="btn ghost small" data-act="checkin" style="margin-top:16px">Modifier mon check-in</button>` : ""}
+    </section>` : isFuture ? "" : `<p class="hint">Nutrition de ce jour : onglet Nutrition, en changeant de date.</p>`}
+    ${c && isToday ? `<button class="btn ghost small" data-act="checkin" style="margin-top:16px">Modifier mon check-in</button>` : ""}
   `;
 
   el.querySelector("[data-act=reply]")?.addEventListener("click", () => openThread(lastMsg.from_id, lastMsg.from_name, ctx));
   el.querySelectorAll("[data-act=checkin]").forEach((b) => b.addEventListener("click", () => openCheckin(key, ctx.refresh)));
-  el.querySelector("[data-act=assistant]").addEventListener("click", () => ctx.go("assistant"));
+  el.querySelector("[data-act=assistant]")?.addEventListener("click", () => ctx.go("assistant"));
+  el.querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => { selDay = b.dataset.day === today ? null : b.dataset.day; ctx.refresh(); }));
+  el.querySelectorAll("[data-week]").forEach((b) => b.addEventListener("click", () => { selDay = addDays(key, Number(b.dataset.week)); if (selDay === today) selDay = null; ctx.refresh(); }));
   el.querySelector("[data-act=food]")?.addEventListener("click", () => ctx.go("food", { add: true }));
   el.querySelectorAll("[data-block]").forEach((b) => b.addEventListener("click", () => {
     const block = plan.blocks.find((x) => x.id === b.dataset.block);

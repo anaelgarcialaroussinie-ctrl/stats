@@ -10,7 +10,7 @@ import { renderProgress } from "./views/progress.js";
 import { renderCoach } from "./views/coach.js";
 import { renderAcademy } from "./views/academy.js";
 import { renderAssistant } from "./views/assistant.js";
-import { LEVELS, DAYS } from "./data.js";
+import { LEVELS, DAYS, DAYS_LONG, CLUB_CLASSES, PARCOURS, clubDaysOf, hm } from "./data.js";
 import { isMinor, findClass } from "./engine.js";
 import { sync } from "./sync.js";
 
@@ -86,7 +86,8 @@ window.addEventListener("hashchange", () => { current = (location.hash || "#toda
 // ---------- profil ----------
 function openProfile() {
   const p = { ...store.get().profile };
-  p.clubDays = [...(p.clubDays || [])]; p.scDays = [...(p.scDays || [])];
+  p.clubDays = [...(p.clubDays || [])]; p.scDays = [...(p.scDays || [])]; p.classes = [...(p.classes || [])];
+  const classChips = () => DAYS.map((d, di) => { const cs = CLUB_CLASSES.filter((c) => c.day === di); return cs.length ? `<div class="tiny muted" style="margin:8px 0 4px;font-weight:700">${DAYS_LONG[di][0].toUpperCase() + DAYS_LONG[di].slice(1)}</div><div class="chips">${cs.map((c) => `<button type="button" class="chip" data-cls="${c.id}" aria-pressed="${p.classes.includes(c.id)}">${hm(c.start)} ${esc(c.name)}</button>`).join("")}</div>` : ""; }).join("");
   const cl = findClass(p);
   const dayChips = (name) => `<div class="chips">${DAYS.map((d, i) => `<button type="button" class="chip" data-day="${name}" data-i="${i}" aria-pressed="${p[name].includes(i)}">${d}</button>`).join("")}</div>`;
   const body = openSheet("Mon profil", `
@@ -114,7 +115,10 @@ function openProfile() {
       <label class="field"><span>Objectif</span><select class="input" name="goal"><option value="perf" ${p.goal === "perf" ? "selected" : ""}>Progresser</option><option value="weight" ${p.goal === "weight" ? "selected" : ""}>Perdre du poids</option><option value="compet" ${p.goal === "compet" ? "selected" : ""}>Préparer un combat</option></select></label>
       <label class="field"><span>Date du combat</span><input class="input" type="date" name="competitionDate" value="${p.competitionDate || ""}"></label>
       <label class="field"><span>Préparation physique</span><select class="input" name="equipment"><option value="gym" ${p.equipment === "gym" ? "selected" : ""}>En salle</option><option value="home" ${p.equipment === "home" ? "selected" : ""}>À la maison</option></select></label>
-      <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Jours au club</span>${dayChips("clubDays")}</div>
+      <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Mes cours au club</span>
+        <div class="chips">${PARCOURS.map((x) => `<button type="button" class="chip" data-parcours="${x.id}">${esc(x.label)}</button>`).join("")}</div>
+        <p class="hint">Choisis ta formule pour cocher ses cours, puis ajuste cours par cours.</p>
+        <div data-classes>${classChips()}</div></div>
       <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Jours de préparation physique</span>${dayChips("scDays")}</div>
       ${p.sex === "F" ? `<label class="row"><input type="checkbox" name="trackCycle" ${p.trackCycle ? "checked" : ""} style="width:22px;height:22px"><span>Suivre mon cycle dans le check-in (facultatif)</span></label>` : ""}
       ${cl ? `<p class="hint">Catégorie estimée : ${esc(cl.label)}${cl.sex === "F" ? " (F)" : ""}, limite ${cl.maxKg} kg.${isMinor(p) ? " Profil mineur : protections activées." : ""}</p>` : ""}
@@ -165,6 +169,10 @@ function openProfile() {
   body.querySelector("[data-models]").addEventListener("click", () => openModelSearch(null, () => {}));
   const f = body.querySelector("[data-prof]");
   f.addEventListener("click", (e) => {
+    const pc = e.target.closest("[data-parcours]");
+    if (pc) { p.classes = [...PARCOURS.find((x) => x.id === pc.dataset.parcours).classes]; f.querySelector("[data-classes]").innerHTML = classChips(); return; }
+    const cb = e.target.closest("[data-cls]");
+    if (cb) { const id = cb.dataset.cls; p.classes = p.classes.includes(id) ? p.classes.filter((x) => x !== id) : [...p.classes, id]; cb.setAttribute("aria-pressed", p.classes.includes(id)); return; }
     const b = e.target.closest("[data-day]"); if (!b) return;
     const arr = p[b.dataset.day]; const i = Number(b.dataset.i); const k = arr.indexOf(i);
     if (k >= 0) arr.splice(k, 1); else arr.push(i);
@@ -173,6 +181,7 @@ function openProfile() {
   f.addEventListener("submit", (e) => {
     e.preventDefault();
     const n = (x) => (f[x].value ? Number(String(f[x].value).replace(",", ".")) : null);
+    if (p.classes.length) p.clubDays = clubDaysOf(p);
     Object.assign(p, { weight: n("weight"), height: n("height"), reach: n("reach"), birthYear: n("birthYear"), level: Number(f.level.value), goal: f.goal.value, competitionDate: f.competitionDate.value, equipment: f.equipment.value, trackCycle: f.trackCycle?.checked || false });
     store.update((s) => { s.profile = { ...p, photo: s.profile.photo, banner: s.profile.banner, badges: s.profile.badges }; ["photo", "banner"].forEach((k) => { if (!s.profile[k]) delete s.profile[k]; }); });
     closeSheet(); toast("Profil mis à jour"); render();
@@ -222,7 +231,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "12";
+const APP_VERSION = "13";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});

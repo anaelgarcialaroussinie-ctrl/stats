@@ -1,5 +1,5 @@
 // Moteur Fight Art Performance : règles issues de la base de connaissances.
-import { CLASSES, STRENGTH, MOBILITY, MOVEMENT, DAYS_LONG } from "./data.js";
+import { CLASSES, STRENGTH, MOBILITY, MOVEMENT, DAYS_LONG, classesOn, clubDaysOf, hm } from "./data.js";
 import { store, todayKey, addDays, dayIndex } from "./store.js";
 
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -85,10 +85,13 @@ export function strengthDays(p, key = todayKey()) {
   return map;
 }
 
+const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+
 export function dayPlan(p, key = todayKey(), state = store.get()) {
   const di = dayIndex(key);
   const sc = strengthDays(p, key);
-  const club = (p.clubDays || []).includes(di);
+  const cls = classesOn(p, di);
+  const club = cls.length ? true : (p.classes?.length ? false : (p.clubDays || []).includes(di));
   const kind = sc[di];
   const c = state.checkins[key];
   const r = readiness(c);
@@ -111,11 +114,13 @@ export function dayPlan(p, key = todayKey(), state = store.get()) {
   }
 
   if (club) {
-    let detail = "Technique, drills, sparring selon le coach";
-    if (r?.level === "warn") detail = "Technique et drills, pas de sparring dur aujourd'hui";
-    if (r?.level === "bad") detail = "Si tu y vas : technique légère seulement";
+    const spar = cls.some((c) => c.kind === "sparring");
+    let detail = cls.length ? cls.map((c) => `${hm(c.start)}-${hm(c.end)} ${c.name}`).join(" · ") : "Technique, drills, sparring selon le coach";
+    if (r?.level === "warn") detail += spar ? " · Forme moyenne : reste au niveau 1 en sparring" : " · Forme moyenne : technique et drills, pas de sparring dur";
+    if (r?.level === "bad") detail += " · Forme basse : si tu y vas, technique légère seulement";
     if (minor) detail += " · pas de coups à la tête en sparring";
-    blocks.push({ id: "club", type: "club", title: "Entraînement au club", detail, minutes: 90 });
+    const minutes = cls.length ? cls.reduce((t, c) => t + (toMin(c.end) - toMin(c.start)), 0) : 90;
+    blocks.push({ id: "club", type: "club", title: cls.length ? `Au club : ${cls.map((c) => c.name).join(" + ")}` : "Entraînement au club", detail, minutes, classes: cls });
   } else if (!kind && di !== 6) {
     blocks.push({ id: "drills", type: "drills", title: "Drills solo", detail: "20 min · lutte, sol et shadow en 30/30", minutes: 20 });
   }
@@ -132,7 +137,7 @@ export function weekPlan(p, key = todayKey()) {
   return [...Array(7)].map((_, i) => {
     const k = addDays(monday, i);
     const sc = strengthDays(p, k);
-    const club = (p.clubDays || []).includes(i);
+    const club = clubDaysOf(p).includes(i);
     const parts = [];
     if (sc[i]) parts.push(STRENGTH[sc[i]].title);
     if (club) parts.push("Club");

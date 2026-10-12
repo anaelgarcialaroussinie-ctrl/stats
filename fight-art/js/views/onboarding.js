@@ -1,8 +1,8 @@
 import { esc } from "../ui.js";
-import { LEVELS, ORIGINS, DAYS } from "../data.js";
+import { LEVELS, ORIGINS, DAYS, CLUB_CLASSES, PARCOURS, clubDaysOf, hm } from "../data.js";
 
 export function renderOnboarding(root, { onDone, checkCode, restore, prefillCode = "" }) {
-  const d = { role: "fighter", code: prefillCode, teamName: "", name: "", sex: "H", birthYear: "", weight: "", height: "", reach: "", level: 1, origin: "none", goal: "perf", competitionDate: "", equipment: "gym", clubDays: [1, 3], scDays: [0, 2, 4], consent: false, parental: false };
+  const d = { role: "fighter", code: prefillCode, teamName: "", name: "", sex: "H", birthYear: "", weight: "", height: "", reach: "", level: 1, origin: "none", goal: "perf", competitionDate: "", equipment: "gym", clubDays: [1, 3], classes: [], parcours: "", scDays: [0, 2, 4], consent: false, parental: false };
   let step = 0;
   let error = "";
   let busy = false;
@@ -62,7 +62,8 @@ export function renderOnboarding(root, { onDone, checkCode, restore, prefillCode
       <h2 class="display">Ta semaine</h2>
       <p class="muted">L'appli construit ton programme autour de tes entraînements au club.</p>
       <div class="stack" style="margin-top:14px">
-        <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Jours d'entraînement au club</span>${chips("clubDays", dayList, d.clubDays, true)}</div>
+        <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Ta formule au club</span>${chips("parcours", PARCOURS.map((x) => ({ id: x.id, label: x.label })), d.parcours)}</div>
+        <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Tes cours (ajuste si besoin)</span>${chips("classes", CLUB_CLASSES.map((c) => ({ id: c.id, label: `${DAYS[c.day]} ${hm(c.start)} · ${c.name}` })), d.classes, true)}</div>
         <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Jours de préparation physique (2 ou 3)</span>${chips("scDays", dayList, d.scDays, true)}
         <p class="hint">Par défaut lundi, mercredi, vendredi : lourd, rapide, volume.</p></div>
       </div>`;
@@ -107,6 +108,8 @@ export function renderOnboarding(root, { onDone, checkCode, restore, prefillCode
         const arr = d[name]; const i = arr.indexOf(id);
         if (i >= 0) arr.splice(i, 1); else arr.push(id);
       } else d[name] = id;
+      if (name === "parcours") d.classes = [...PARCOURS.find((x) => x.id === id).classes];
+      if (name === "classes" || name === "parcours") d.clubDays = clubDaysOf(d);
       view();
     }));
     form.querySelector("[data-back]")?.addEventListener("click", () => { step--; view(); });
