@@ -21,5 +21,20 @@
 <div id="sheet-root"></div>
 <div id="toast" role="status"></div>
 <script type="module" src="js/app.js"></script>
+<script>
+  // Filet de sécurité : si l'appli ne démarre pas (mise à jour incomplète), on propose de la recharger proprement.
+  setTimeout(function () {
+    if (window.FAP_BOOTED) return;
+    var app = document.getElementById("app");
+    app.innerHTML = '<div style="padding:40px 20px;text-align:center"><p style="font-size:18px;font-weight:700">L\'appli se met à jour</p><p style="color:#9A9C96">Touche le bouton pour terminer la mise à jour. Tes données ne sont pas effacées.</p><button id="fap-fix" style="margin-top:16px;padding:14px 22px;border-radius:999px;border:0;background:#B8F34B;font-weight:700;font-size:16px">Recharger l\'appli</button></div>';
+    document.getElementById("fap-fix").onclick = function () {
+      var done = function () { location.replace(location.pathname + "?v=" + Date.now()); };
+      Promise.all([
+        navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }) : null,
+        window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : null,
+      ]).then(done, done);
+    };
+  }, 6000);
+</script>
 </body>
 </html>

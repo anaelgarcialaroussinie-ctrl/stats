@@ -5,6 +5,7 @@ import { LEVELS } from "../data.js";
 import { sync } from "../sync.js";
 import { TOPICS, fmtAnswer } from "./assistant.js";
 import { systemTree } from "./systems.js";
+import { profileCard } from "./identity.js";
 
 // Exemple affiché tant qu'aucune équipe n'est reliée.
 const SAMPLE = [
@@ -86,7 +87,7 @@ function draw(el, team, raw, live) {
 function openFighter(f, live) {
   const gap = f.weight && f.classLimit ? (f.weight / f.classLimit - 1) * 100 : null;
   const body = openSheet(f.name, `
-    ${f.p?.photo ? `<div style="margin-bottom:12px">${avatarHtml(f.name, f.p?.photo, "avatar avatar-xl")}</div>` : ""}
+    ${f.p ? `<div style="margin-bottom:12px">${profileCard(f.p, { models: f.st?.favFighters || [] })}</div>` : ""}
     <div class="grid2">
       <div class="panel"><div class="muted tiny">Forme</div><div class="display num ${f.score === null ? "" : lvl(f.score)}" style="font-size:34px">${f.score ?? "–"}</div><div class="tiny muted">${f.trend.length ? "Derniers jours : " + f.trend.join(" · ") : "Aucun check-in récent"}</div></div>
       <div class="panel"><div class="muted tiny">Charge 7 jours</div><div class="display num" style="font-size:34px">${fmt(f.load)}</div><div class="tiny muted">${f.loadPrev ? `${f.load > f.loadPrev ? "+" : ""}${fmt((f.load / f.loadPrev - 1) * 100)} % vs semaine passée` : "Pas de semaine précédente"}</div></div>

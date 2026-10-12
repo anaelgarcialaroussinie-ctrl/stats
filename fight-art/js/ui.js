@@ -79,17 +79,19 @@ export function avatarHtml(name = "", photo = "", cls = "avatar") {
     : `<span class="${cls}">${esc(initials(name))}</span>`;
 }
 
-// réduit et recadre une image en carré (JPEG ~20-40 Ko) pour la stocker dans le profil
-export async function squarePhoto(file, size = 256) {
+// réduit et recadre une image (cadrage centré) pour la stocker dans le profil
+export async function cropImage(file, w, h, quality = 0.8) {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
-    const side = Math.min(img.naturalWidth, img.naturalHeight);
-    const c = document.createElement("canvas"); c.width = c.height = size;
-    c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
-    return c.toDataURL("image/jpeg", 0.82);
+    const iw = img.naturalWidth, ih = img.naturalHeight, ratio = w / h;
+    const sw = Math.min(iw, ih * ratio), sh = sw / ratio;
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    c.getContext("2d").drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, w, h);
+    return c.toDataURL("image/jpeg", quality);
   } finally { URL.revokeObjectURL(url); }
 }
+export const squarePhoto = (file, size = 256) => cropImage(file, size, size, 0.82);
 
 export function initials(name = "") {
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";

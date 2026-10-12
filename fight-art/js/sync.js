@@ -36,6 +36,7 @@ export const sync = {
   role: () => meta.role || null,
   teamName: () => meta.team_name || "FIGHT ART",
   token: () => token,
+  lastSync: () => meta.lastSync || null,
   onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
 
   async checkCode(code) { return rpc("fap_check_code", { p_code: code }); },
@@ -69,6 +70,8 @@ export const sync = {
       } else if ((local.savedAt || "") > remoteAt) {
         sync.push();
       }
+      // le rôle (coach ou fighter) vient toujours de la base
+      if (store.get().profile && store.get().profile.role !== res.role) store.update((s) => { s.profile.role = res.role; }, { silent: true });
       sync.inbox();
     } catch (e) {
       if (e.code === "invalid_token") sync.signOut();
@@ -84,8 +87,8 @@ export const sync = {
   async push() {
     if (!token) return;
     const s = store.get();
-    try { await rpc("fap_save", { p_token: token, p_profile: s.profile, p_state: s }); meta.lastSync = new Date().toISOString(); emit(); }
-    catch { /* hors ligne : on réessaiera au prochain changement */ }
+    try { await rpc("fap_save", { p_token: token, p_profile: s.profile, p_state: s }); meta.lastSync = new Date().toISOString(); try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch {} emit(); return true; }
+    catch { /* hors ligne : on réessaiera au prochain changement */ return false; }
   },
 
   // coach

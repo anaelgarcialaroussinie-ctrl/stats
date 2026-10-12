@@ -1,5 +1,7 @@
 import { store, todayKey } from "./store.js";
-import { esc, icon, openSheet, closeSheet, toast, initials, avatarHtml, squarePhoto } from "./ui.js";
+import { esc, icon, openSheet, closeSheet, toast, initials, avatarHtml, squarePhoto, cropImage } from "./ui.js";
+import { profileCard, badgePicker, MAX_BADGES } from "./views/identity.js";
+import { openModelSearch } from "./views/models.js";
 import { renderOnboarding } from "./views/onboarding.js";
 import { renderToday } from "./views/today.js";
 import { renderNutrition } from "./views/nutrition.js";
@@ -87,14 +89,20 @@ function openProfile() {
   p.clubDays = [...(p.clubDays || [])]; p.scDays = [...(p.scDays || [])];
   const cl = findClass(p);
   const dayChips = (name) => `<div class="chips">${DAYS.map((d, i) => `<button type="button" class="chip" data-day="${name}" data-i="${i}" aria-pressed="${p[name].includes(i)}">${d}</button>`).join("")}</div>`;
-  const body = openSheet(p.name, `
-    <div class="photo-edit">
-      <span data-photo-view>${avatarHtml(p.name, p.photo, "avatar avatar-xl")}</span>
-      <div class="stack" style="gap:8px">
-        <label class="btn small">${icon("camera")} ${p.photo ? "Changer ma photo" : "Ajouter une photo"}<input type="file" accept="image/*" data-photo hidden></label>
-        ${p.photo ? `<button type="button" class="btn ghost small" data-photo-del>Retirer la photo</button>` : ""}
-      </div>
+  const body = openSheet("Mon profil", `
+    <div data-card>${profileCard(p, { models: store.get().favFighters || [] })}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin:12px 0 4px">
+      <label class="btn small">${icon("camera")} Photo<input type="file" accept="image/*" data-photo hidden></label>
+      <label class="btn small">${icon("camera")} Bannière<input type="file" accept="image/*" data-banner hidden></label>
+      ${p.photo ? `<button type="button" class="btn ghost small" data-photo-del>Retirer la photo</button>` : ""}
+      ${p.banner ? `<button type="button" class="btn ghost small" data-banner-del>Retirer la bannière</button>` : ""}
     </div>
+    <h3 class="sys-h">Mes insignes <span class="tiny muted">(jusqu'à ${MAX_BADGES})</span></h3>
+    <div data-badges>${badgePicker(p.badges || [])}</div>
+    <h3 class="sys-h">Mes modèles UFC</h3>
+    <p class="small muted" style="margin:0 0 8px">${(store.get().favFighters || []).length ? esc((store.get().favFighters || []).join(" · ")) : "Aucun pour l'instant."}</p>
+    <button type="button" class="btn ghost small" data-models>Choisir mes modèles</button>
+    <h3 class="sys-h">Mes infos</h3>
     <form class="stack" data-prof>
       <div class="grid2">
         <label class="field"><span>Poids (kg)</span><input class="input num" name="weight" inputmode="decimal" value="${p.weight ?? ""}"></label>
@@ -115,25 +123,46 @@ function openProfile() {
     ${sync.connected() ? `<h3 class="h-sec">Mon compte</h3>
     <div class="panel stack">
       <div class="row between"><span class="muted small">Équipe</span><b>${esc(sync.teamName())}</b></div>
+      <div class="row between"><span class="muted small">Rôle</span><b>${p.role === "coach" ? "Coach" : "Fighter"}</b></div>
+      <div class="row between"><span class="muted small">Dernière sauvegarde</span><span class="small" data-lastsync>${sync.lastSync() ? esc(new Date(sync.lastSync()).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })) : "jamais"}</span></div>
+      <button type="button" class="btn ghost small" data-savenow>Sauvegarder maintenant</button>
       ${p.role === "coach" ? `<div><div class="muted small">Code à donner à tes fighters</div><div class="row between"><b class="num" data-joincode>…</b><button class="btn small ghost" data-copy="joincode">Copier</button></div></div>` : ""}
       <div><div class="muted small">Code de connexion (pour ton autre téléphone, garde-le pour toi)</div>
         <div class="row between"><code class="tiny num" style="word-break:break-all">${esc(sync.token())}</code><button class="btn small ghost" data-copy="token">Copier</button></div></div>
     </div>` : `<p class="notice is-warn small" style="margin-top:16px">Ce téléphone n'est relié à aucune équipe : tes données restent sur ce téléphone.</p>`}
     <div class="stack" style="margin-top:22px">
       <button class="btn ghost block" data-install>Installer l'appli sur mon téléphone</button>
+      <button class="btn ghost block" data-update>Mettre à jour l'appli</button>
+      <p class="hint" style="text-align:center">Version ${APP_VERSION}</p>
       <button class="btn ghost block" data-export>Exporter mes données</button>
       <button class="btn ghost block" data-reset style="color:var(--bad)">${sync.connected() ? "Me déconnecter de ce téléphone" : "Effacer mes données sur ce téléphone"}</button>
     </div>`);
-  const setPhoto = (photo) => {
-    p.photo = photo;
-    store.update((s) => { s.profile = { ...s.profile, photo }; if (!photo) delete s.profile.photo; });
-    closeSheet(); toast(photo ? "Photo enregistrée" : "Photo retirée"); render(); openProfile();
+  const setImg = (key, val, msg) => {
+    p[key] = val;
+    store.update((s) => { s.profile = { ...s.profile, [key]: val }; if (!val) delete s.profile[key]; });
+    closeSheet(); toast(msg); render(); openProfile();
   };
   body.querySelector("[data-photo]").addEventListener("change", async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    try { setPhoto(await squarePhoto(file)); } catch { toast("Image illisible : essaie une autre photo"); }
+    try { setImg("photo", await squarePhoto(file), "Photo enregistrée"); } catch { toast("Image illisible : essaie une autre photo"); }
   });
-  body.querySelector("[data-photo-del]")?.addEventListener("click", () => setPhoto(""));
+  body.querySelector("[data-banner]").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try { setImg("banner", await cropImage(file, 720, 240, 0.72), "Bannière enregistrée"); } catch { toast("Image illisible : essaie une autre image"); }
+  });
+  body.querySelector("[data-photo-del]")?.addEventListener("click", () => setImg("photo", "", "Photo retirée"));
+  body.querySelector("[data-banner-del]")?.addEventListener("click", () => setImg("banner", "", "Bannière retirée"));
+  body.querySelector("[data-badges]").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-badge]"); if (!b) return;
+    const cur = store.get().profile.badges || []; const id = b.dataset.badge;
+    if (!cur.includes(id) && cur.length >= MAX_BADGES) { toast(`${MAX_BADGES} insignes maximum : retire-en un d'abord`); return; }
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    p.badges = next;
+    store.update((s) => { s.profile = { ...s.profile, badges: next }; });
+    b.setAttribute("aria-pressed", next.includes(id));
+    body.querySelector("[data-card]").innerHTML = profileCard({ ...store.get().profile }, { models: store.get().favFighters || [] });
+  });
+  body.querySelector("[data-models]").addEventListener("click", () => openModelSearch(null, () => {}));
   const f = body.querySelector("[data-prof]");
   f.addEventListener("click", (e) => {
     const b = e.target.closest("[data-day]"); if (!b) return;
@@ -145,8 +174,21 @@ function openProfile() {
     e.preventDefault();
     const n = (x) => (f[x].value ? Number(String(f[x].value).replace(",", ".")) : null);
     Object.assign(p, { weight: n("weight"), height: n("height"), reach: n("reach"), birthYear: n("birthYear"), level: Number(f.level.value), goal: f.goal.value, competitionDate: f.competitionDate.value, equipment: f.equipment.value, trackCycle: f.trackCycle?.checked || false });
-    store.update((s) => { s.profile = { ...p, photo: s.profile.photo }; if (!s.profile.photo) delete s.profile.photo; });
+    store.update((s) => { s.profile = { ...p, photo: s.profile.photo, banner: s.profile.banner, badges: s.profile.badges }; ["photo", "banner"].forEach((k) => { if (!s.profile[k]) delete s.profile[k]; }); });
     closeSheet(); toast("Profil mis à jour"); render();
+  });
+  body.querySelector("[data-savenow]")?.addEventListener("click", async (e) => {
+    e.target.disabled = true; e.target.textContent = "Sauvegarde…";
+    const ok = await sync.push();
+    e.target.disabled = false; e.target.textContent = "Sauvegarder maintenant";
+    if (ok) { body.querySelector("[data-lastsync]").textContent = "à l'instant"; toast("Données sauvegardées"); } else toast("Sauvegarde impossible : vérifie ta connexion");
+  });
+  body.querySelector("[data-update]").addEventListener("click", async () => {
+    toast("Mise à jour…");
+    try { await sync.push(); } catch {}
+    try { const rs = await navigator.serviceWorker?.getRegistrations(); await Promise.all((rs || []).map((r) => r.unregister())); } catch {}
+    try { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); } catch {}
+    location.replace(location.pathname + "?v=" + Date.now());
   });
   body.querySelector("[data-install]").addEventListener("click", () => { closeSheet(); installHint(true); });
   if (p.role === "coach" && sync.connected()) sync.team().then((t) => { const el = body.querySelector("[data-joincode]"); if (el && t) el.textContent = t.join_code; }).catch(() => {});
@@ -180,11 +222,17 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
+const APP_VERSION = "11";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});
+  // nouvelle version installée : on recharge une fois pour ne pas mélanger ancien et nouveau code
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
 }
 
 sync.pull().then(() => { if (store.get().profile) render(true); });
+window.FAP_BOOTED = true;
 let lastInbox = 0;
 sync.onChange(() => { const n = sync.cachedInbox().length; if (n !== lastInbox && current === "today" && !document.getElementById("sheet-root").innerHTML && store.get().profile) { lastInbox = n; render(true); } });
 render();
