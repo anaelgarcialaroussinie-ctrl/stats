@@ -1,5 +1,6 @@
 // Risques et ouvertures de chaque technique, et construction de systèmes offensifs ou défensifs.
 import { store, uid, todayKey } from "../store.js";
+import { myNote } from "../study-notes.js";
 import { esc, icon, openSheet, closeSheet, toast } from "../ui.js";
 import { TECHS, MAIN_TECHS, FAMILIES, tech } from "../systems-data.js";
 import { runTimer } from "./timer.js";
@@ -35,7 +36,8 @@ export function openExplorer(startId, after) {
       ${t.counters.length || t.opens.length ? `<div class="grid2" style="margin-top:14px">
         <button class="btn tape-btn small" data-build="off">Je l'utilise</button>
         <button class="btn ghost small" data-build="def">Il l'utilise</button></div>
-        <p class="hint">Crée ton système : « Je l'utilise » prépare ton attaque avec ${esc(t.name.toLowerCase())}, « Il l'utilise » prépare ta défense quand l'adversaire la tente.</p>` : ""}`;
+        <p class="hint">Crée ton système : « Je l'utilise » prépare ton attaque avec ${esc(t.name.toLowerCase())}, « Il l'utilise » prépare ta défense quand l'adversaire la tente.</p>` : ""}
+      <div style="margin-top:14px">${myNote(`tech:${t.id}`, `Techniques · ${t.name}`)}</div>`;
   };
   body.addEventListener("click", (e) => {
     const b = e.target.closest("[data-t]");

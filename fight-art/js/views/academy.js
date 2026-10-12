@@ -1,4 +1,5 @@
 import { store, uid, todayKey } from "../store.js";
+import { myNote, studyNotes } from "../study-notes.js";
 import { esc, icon, openSheet, closeSheet, toast, segBar, bindSeg } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
@@ -62,6 +63,12 @@ export function renderAcademy(el, ctx) {
       </div>
     </section>
 
+    <h2 class="h-sec">Mes notes d'étude</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Sous chaque contenu de l'Academy (zones, gardes, combinaisons, Luta Livre, techniques, armes, modèles UFC, vidéos), touche « Mes notes » pour écrire ce que tu as compris, avec tes mots. Elles te suivent sur tous tes appareils ; ton coach peut les lire pour t'aider.</p>
+      ${Object.keys(st.studyNotes || {}).length ? `<button class="btn tape-btn block" data-studynotes>Relire mes ${Object.keys(st.studyNotes).length} note${Object.keys(st.studyNotes).length > 1 ? "s" : ""}</button>` : `<p class="tiny muted" style="margin:0">Aucune note pour l'instant.</p>`}
+    </section>
+
     </div><div data-seg="modeles">
     <h2 class="h-sec">Mes modèles UFC</h2>
     <section class="panel">
@@ -122,6 +129,7 @@ export function renderAcademy(el, ctx) {
   bindSeg(el, "academy", seg.cur);
 
   el.querySelector("[data-newnote]").addEventListener("click", () => openNote(null, ctx.refresh));
+  el.querySelector("[data-studynotes]")?.addEventListener("click", () => openStudyNotes(ctx.refresh));
   el.querySelector("[data-notes]")?.addEventListener("click", () => openNotesList(ctx.refresh));
   el.querySelectorAll("[data-note]").forEach((li) => li.addEventListener("click", () => openNoteRead((st.notes || []).find((n) => n.id === li.dataset.note), ctx.refresh)));
   el.querySelector("[data-newcombo]").addEventListener("click", () => editCombo(null, ctx.refresh));
@@ -203,14 +211,15 @@ function openModule(id, ctx) {
         <div><div class="tiny muted">Techniques clés</div><ul class="bul">${z.keys.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>
       </div>
       <div class="notice is-alert small" style="margin-top:10px"><b>Dangers</b> : ${z.dangers.map(esc).join(" · ")}</div>
+      ${myNote(`zone:${z.title}`, `Zones · ${z.title}`)}
     </section>`).join(""));
 
   if (id === "stances") return openSheet("Gardes et attitudes", STANCES.map((s) => `
-    <section class="panel" style="margin-bottom:10px"><h3>${esc(s.name)}</h3><p class="small" style="margin:6px 0">${esc(s.text)}</p><p class="tiny muted" style="margin:0">À retenir : ${esc(s.tip)}</p></section>`).join(""));
+    <section class="panel" style="margin-bottom:10px"><h3>${esc(s.name)}</h3><p class="small" style="margin:6px 0">${esc(s.text)}</p><p class="tiny muted" style="margin:0">À retenir : ${esc(s.tip)}</p>${myNote(`stance:${s.name}`, `Gardes · ${s.name}`)}</section>`).join(""));
 
   if (id === "profiles") return openSheet("Les profils de combattants", `
     <p class="muted small">Regroupement automatique de 1 073 combattants UFC selon leur façon de combattre (analyse Fight Art Performance). Des tendances, pas des règles.</p>
-    ${PROFILES.map((p) => `<section class="panel" style="margin-top:10px"><h3>${esc(p.name)}</h3><p class="small" style="margin:6px 0">${esc(p.how)}</p><p class="tiny muted">Gabarit : ${esc(p.body)}</p><p class="small" style="margin:0"><b>Pour le battre</b> : ${esc(p.beat)}</p></section>`).join("")}`);
+    ${PROFILES.map((p) => `<section class="panel" style="margin-top:10px"><h3>${esc(p.name)}</h3><p class="small" style="margin:6px 0">${esc(p.how)}</p><p class="tiny muted">Gabarit : ${esc(p.body)}</p><p class="small" style="margin:0"><b>Pour le battre</b> : ${esc(p.beat)}</p>${myNote(`profile:${p.name}`, `Profils · ${p.name}`)}</section>`).join("")}`);
 
   if (id === "combos") {
     const body = openSheet("Combinaisons classiques", `
@@ -220,14 +229,26 @@ function openModule(id, ctx) {
         <p class="small" style="margin:10px 0 4px"><b>Ce qu'il ouvre</b> : ${esc(c.opens)}</p>
         <p class="small" style="margin:0 0 4px"><b>Ce qu'il expose</b> : ${esc(c.exposes)}</p>
         <p class="tiny muted">${esc(c.tip)}</p>
-        <button class="btn ghost small" data-take="${i}">${icon("plus")} Ajouter à mes combos</button></section>`).join("")}`);
+        <button class="btn ghost small" data-take="${i}">${icon("plus")} Ajouter à mes combos</button>${myNote(`combo:${c.name}`, `Combinaisons · ${c.name}`)}</section>`).join("")}`);
     body.addEventListener("click", (e) => { const b = e.target.closest("[data-take]"); if (b) editCombo(null, ctx.refresh, CLASSIC_COMBOS[b.dataset.take]); });
     return;
   }
 
   if (id === "luta") return openLuta();
   if (id === "arts") return openSheet("Les arts du MMA", ARTS.map((a) => `
-    <section class="panel" style="margin-bottom:10px"><h3>${esc(a.name)}</h3><p class="small" style="margin:6px 0"><b>Ce qu'il apporte</b> : ${esc(a.brings)}</p><p class="small" style="margin:0"><b>À adapter au MMA</b> : ${esc(a.adapt)}</p></section>`).join(""));
+    <section class="panel" style="margin-bottom:10px"><h3>${esc(a.name)}</h3><p class="small" style="margin:6px 0"><b>Ce qu'il apporte</b> : ${esc(a.brings)}</p><p class="small" style="margin:0"><b>À adapter au MMA</b> : ${esc(a.adapt)}</p>${myNote(`art:${a.name}`, `Arts du MMA · ${a.name}`)}</section>`).join(""));
+}
+
+// ---------- mes notes d'étude : tout relire au même endroit ----------
+function openStudyNotes(after) {
+  const list = Object.entries(studyNotes()).sort((a, b) => (b[1].at || "").localeCompare(a[1].at || ""));
+  const groups = {};
+  list.forEach(([k, n]) => { const g = (n.label || "Autre").split(" · ")[0]; (groups[g] ||= []).push([k, n]); });
+  openSheet("Mes notes d'étude", list.length ? Object.entries(groups).map(([g, items]) => `<h3 class="sys-h">${esc(g)}</h3>
+    ${items.map(([k, n]) => `<section class="panel" style="padding:12px;margin-top:8px"><b class="small">${esc((n.label || "").split(" · ").slice(1).join(" · ") || n.label || "")}</b>
+      <textarea class="input" rows="3" maxlength="4000" data-mynote="${esc(k)}" data-label="${esc(n.label || "")}" style="margin-top:6px">${esc(n.t)}</textarea>
+      <div class="tiny muted" style="margin-top:4px">${esc(new Date(n.at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }))}</div></section>`).join("")}`).join("")
+    + `<p class="hint">Vider une note la supprime.</p>` : `<p class="muted small">Aucune note pour l'instant.</p>`, { close: after });
 }
 
 // ---------- Luta Livre ----------
@@ -237,18 +258,22 @@ function openLuta() {
     <details class="sys-card" open><summary><b>Structure d'un cours</b></summary>
       <p class="tiny muted">${esc(LESSON.intro)}</p>
       <ol class="plan">${LESSON.steps.map((x) => `<li><div><b>${esc(x.name)}</b> <span class="tiny muted">· ${x.min} min</span><div class="small">${esc(x.text)}</div></div></li>`).join("")}</ol>
+      ${myNote("luta:structure", "Luta Livre · Structure d'un cours")}
     </details>
     <details class="sys-card"><summary><b>Programme des ceintures</b></summary>
       ${GRADES.map((g) => `<div style="margin-top:10px"><div class="row" style="gap:8px"><span style="width:28px;height:8px;border-radius:4px;background:${g.color};display:inline-block"></span><b>${esc(g.name)}</b></div><ul class="bul">${g.themes.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>`).join("")}
+      ${myNote("luta:ceintures", "Luta Livre · Programme des ceintures")}
     </details>
     ${CYCLES.map((c) => `<details class="sys-card"><summary><b>${esc(c.name)}</b><span class="tiny muted" style="display:block">${c.weeks} semaines</span></summary>
       <p class="small">${esc(c.text)}</p>
       ${c.plan.map((w) => `<div class="panel" style="padding:12px;margin-top:8px"><div class="tiny muted">Semaine ${w.week}</div><b>${esc(w.theme)}</b>
         <ul class="bul">${w.drills.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>
         <p class="small" style="margin:6px 0 0"><b>Sparring à thème</b> : ${esc(w.spar)}</p></div>`).join("")}
+      ${myNote(`luta:cycle:${c.name}`, `Luta Livre · ${c.name}`)}
     </details>`).join("")}
     <details class="sys-card"><summary><b>Vocabulaire</b></summary>
       ${GLOSSARY.map((g) => `<p class="small" style="margin:8px 0"><b>${esc(g.term)}</b> : ${esc(g.def)}</p>`).join("")}
+      ${myNote("luta:vocabulaire", "Luta Livre · Vocabulaire")}
     </details>
     <p class="hint">Les clés de jambes de la Luta Livre (one leg, 50/50, K-guard, false reap) sont dans « Risques et ouvertures des techniques ». La clé de talon est réservée aux adultes avancés.</p>`);
 }
@@ -266,7 +291,8 @@ async function drawLinks(el, ctx) {
     const coach = sync.role() === "coach";
     box.innerHTML = topics.map((t) => `<div class="tiny muted" style="margin:10px 0 4px;font-weight:700">${esc(t)}</div>
       <ul class="list">${rows.filter((r) => r.topic === t).map((r) => `<li><div style="min-width:0"><div style="font-weight:700">${esc(r.title)}</div>${r.note ? `<div class="meta">${esc(r.note)}</div>` : ""}</div>
-        <div class="row" style="gap:6px;flex:none"><a class="icon-btn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Voir ${esc(r.title)}">${icon("play")}</a>${coach ? `<button class="icon-btn" data-editlink="${r.id}" aria-label="Modifier">${icon("edit")}</button>` : ""}</div></li>`).join("")}</ul>`).join("");
+        <div class="row" style="gap:6px;flex:none"><a class="icon-btn" href="${esc(r.url)}" target="_blank" rel="noopener" aria-label="Voir ${esc(r.title)}">${icon("play")}</a>${coach ? `<button class="icon-btn" data-editlink="${r.id}" aria-label="Modifier">${icon("edit")}</button>` : ""}</div></li>
+        <li style="display:block;border-top:0;padding-top:0">${myNote(`video:${r.url}`, `Vidéo · ${r.title}`)}</li>`).join("")}</ul>`).join("");
     box.querySelectorAll("[data-editlink]").forEach((b) => b.addEventListener("click", () => editLink(rows.find((r) => r.id === b.dataset.editlink), ctx.refresh)));
   };
   if (linksCache) paint(linksCache);

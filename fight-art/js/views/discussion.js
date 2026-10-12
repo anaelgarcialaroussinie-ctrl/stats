@@ -1,5 +1,6 @@
 // Le combat comme une discussion : combinaisons (questions), réactions (failles), armes décisives.
 import { store } from "../store.js";
+import { myNote } from "../study-notes.js";
 import { esc, icon, openSheet } from "../ui.js";
 import { isMinor } from "../engine.js";
 import { MOVES } from "../academy-data.js";
@@ -24,6 +25,11 @@ export function openDiscussion(start = { tab: "questions" }, onTrap) {
     ${[["questions", "Combinaisons"], ["reactions", "Réactions"], ["weapons", "Armes décisives"]].map(([id, l]) => `<button class="chip" data-dtab="${id}" aria-pressed="${view.tab === id}">${l}</button>`).join("")}</div>`;
 
   const draw = () => {
+    draw0();
+    const k = view.q !== undefined ? ["q", QUESTIONS[view.q]?.name] : view.r ? ["r", reaction(view.r)?.name] : view.w ? ["w", WEAPONS.find((x) => x.id === view.w)?.name] : null;
+    if (k && k[1]) body.insertAdjacentHTML("beforeend", `<div style="margin-top:14px">${myNote(`disc:${k[0]}:${k[1]}`, `${{ q: "Combinaisons", r: "Réactions", w: "Armes décisives" }[k[0]]} · ${k[1]}`)}</div>`);
+  };
+  const draw0 = () => {
     const back = history.length ? `<div class="row" style="margin-bottom:6px"><button class="icon-btn" data-back aria-label="Retour">${icon("back")}</button></div>` : "";
     if (view.tab) {
       let list = "";

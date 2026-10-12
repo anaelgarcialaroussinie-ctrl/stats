@@ -1,5 +1,6 @@
 // Mes modèles UFC : choisir ses combattants favoris et s'inspirer de leurs chiffres.
 import { store } from "../store.js";
+import { myNote } from "../study-notes.js";
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { openDiscussion } from "./discussion.js";
 import { openExplorer } from "./systems.js";
@@ -134,6 +135,7 @@ export async function openModel(name, onTrap, after) {
     <p class="notice small" style="margin-top:14px">Les statistiques officielles ne disent pas quels enchaînements il utilise. Pour ça : regarde ses combats, note ses combinaisons dans « Mes combos fétiches ».</p>
     <a class="btn ghost block" href="https://www.youtube.com/results?search_query=${encodeURIComponent(f.n + " UFC highlights breakdown")}" target="_blank" rel="noopener">${icon("play")} Chercher ses combats sur YouTube</a>
     <a class="btn ghost block" style="margin-top:8px" href="https://www.ufc.com/athlete/${f.n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}" target="_blank" rel="noopener">Sa page officielle UFC (photos, bio)</a>
+    <div style="margin-top:14px">${myNote(`ufc:${f.n}`, `Modèles UFC · ${f.n}`, { placeholder: "Ce que je lui pique, ce que je retiens de ses combats…" })}</div>
     <p class="hint">Source : ${esc(db.source)}. Le profil de style vient de l'analyse Fight Art Performance de 1 073 combattants UFC. Photo : Wikipédia, quand elle existe.</p>`;
   fillFaces(body);
 
