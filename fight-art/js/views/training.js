@@ -72,7 +72,7 @@ export function renderTraining(el, ctx) {
 
     <h2 class="h-sec">Drills solo</h2>
     <p class="muted small">Choisis un thème, l'appli enchaîne les drills round par round en 30/30. Qualité avant vitesse.</p>
-    <div class="stack" style="margin-top:10px">${DRILL_GROUPS.map((g) => `
+    <div class="stack" style="margin-top:10px">${DRILL_GROUPS.map((g, i) => `${g.section && DRILL_GROUPS[i - 1]?.section !== g.section ? `<h3 class="sys-h" style="margin:6px 0 0">${esc(g.section)}</h3>` : !g.section && DRILL_GROUPS[i - 1]?.section ? `<h3 class="sys-h" style="margin:6px 0 0">Autres disciplines</h3>` : ""}
       <section class="panel">
         <div class="row between"><h3>${esc(g.title)}</h3><button class="btn small tape-btn" data-run="${g.id}">${icon("play")} Lancer</button></div>${g.note ? `<p class="tiny muted" style="margin:6px 0 0">${esc(g.note)}</p>` : ""}
         <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">${g.drills.length} drills · voir le détail et les vidéos</summary>

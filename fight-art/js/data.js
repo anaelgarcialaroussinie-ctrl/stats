@@ -96,7 +96,7 @@ export const MOVEMENT = {
 // Bibliothèque de drills solo
 export const DRILL_GROUPS = [
   {
-    id: "wrestling", title: "Lutte",
+    id: "wrestling", section: "Grappling", title: "Debout · Lutte",
     note: "Les 7 compétences de base de la lutte (méthode USA Wrestling) : position, déplacement, changement de niveau, pénétration, soulever, pas arrière, arc arrière. Puis les drills qui en découlent.",
     drills: [
       { name: "Position (garde de lutte)", how: "Pieds un peu plus larges que les épaules, genoux fléchis, dos droit, tête haute, coudes près du corps, mains devant." },
@@ -115,13 +115,17 @@ export const DRILL_GROUPS = [
     ],
   },
   {
-    id: "ground", title: "Au sol",
+    id: "ground", section: "Grappling", title: "Sol · Luta Livre",
+    note: "Les mouvements de base du sol, sans kimono : sorties de hanche, ponts, relevés, rotations et passages en shadow.",
     drills: [
       { name: "Shrimp (sortie de hanche)", how: "Sur le dos, pousser avec le pied, hanche vers l'arrière. Toutes les variantes." },
       { name: "Pont et pont + shrimp", how: "Hanches hautes par-dessus l'épaule, puis sortie de hanche." },
       { name: "Relevé technique", how: "Une main au sol, un pied au sol, la jambe libre passe derrière, garde protégée." },
       { name: "Sit-out et hip heist", how: "Depuis la tortue, sortir la jambe et pivoter face à l'adversaire imaginaire." },
       { name: "Granby roll", how: "Roulade latérale tête rentrée pour récupérer la garde. Lentement au début." },
+      { name: "Changement de base (hip switch)", how: "Appuyé sur les mains et les pieds, passer une jambe sous l'autre pour changer de côté, hanches basses : la base du contrôle latéral." },
+      { name: "Knee cut en shadow", how: "Genou qui coupe en diagonale au sol, hanches basses, underhook et contrôle de la tête imaginaires, finir en contrôle latéral." },
+      { name: "Leg drag en shadow", how: "Tirer la jambe imaginaire en travers, hanche collée à sa hanche, puis prise de contrôle latéral ou du dos." },
       { name: "Chutes (ukemi)", how: "Arrière et latérales, frapper le sol avec le bras, menton rentré." },
     ],
   },
