@@ -34,17 +34,22 @@ export const DAYS_LONG = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "sa
 
 // Planning adultes du club FIGHT ART, saison 2026-2027 (Marseillan). day : 0 = lundi.
 export const CLUB_CLASSES = [
-  { id: "mma-fond", day: 1, start: "18:15", end: "19:45", name: "MMA Fondamentaux", kind: "tech" },
-  { id: "mma-dev", day: 1, start: "20:00", end: "21:30", name: "MMA Développement", kind: "tech" },
-  { id: "ll-fond", day: 2, start: "18:45", end: "20:15", name: "Luta Livre Fondamentaux", kind: "tech" },
-  { id: "ll-dev", day: 2, start: "20:30", end: "22:00", name: "Luta Livre Développement", kind: "tech" },
-  { id: "atelier", day: 3, start: "15:00", end: "16:00", name: "Atelier perfectionnement", kind: "tech", note: "Atelier perso (Full Access)" },
-  { id: "liaison", day: 3, start: "16:00", end: "17:00", name: "Liaison MMA et Luta Livre", kind: "tech", note: "On connecte MMA et Luta Livre (Full Access)" },
-  { id: "sparring", day: 4, start: "18:45", end: "20:00", name: "Sparring progressif", kind: "sparring", note: "Niveau 1 découverte, niveau 2 intensité contrôlée, Team travail plus avancé" },
-  { id: "team-ven", day: 4, start: "20:00", end: "21:30", name: "Fight Art Team", kind: "sparring", note: "Sparring compétition, préparation de combats, coaching individuel" },
-  { id: "ll-expert", day: 5, start: "10:45", end: "12:00", name: "Luta Livre Expert", kind: "tech", note: "Full Access" },
-  { id: "team-sam", day: 5, start: "12:00", end: "13:00", name: "Fight Art Team", kind: "tech", note: "Préparation technique, tactique et mentale" },
+  { id: "mma-fond", day: 1, start: "18:15", end: "19:45", name: "MMA Fondamentaux", kind: "tech", stage: "Découverte", text: "Les bases du MMA : garde, déplacements, frappes, amenées au sol, positions et sorties." },
+  { id: "mma-dev", day: 1, start: "20:00", end: "21:30", name: "MMA Développement", kind: "tech", stage: "Développement", text: "On construit ses systèmes : enchaînements, transitions frappe, lutte et sol." },
+  { id: "ll-fond", day: 2, start: "18:45", end: "20:15", name: "Luta Livre Fondamentaux", kind: "tech", stage: "Découverte", text: "Les bases de la Luta Livre : positions, contrôles, sorties, premières soumissions." },
+  { id: "ll-dev", day: 2, start: "20:30", end: "22:00", name: "Luta Livre Développement", kind: "tech", stage: "Développement", text: "On construit son jeu de grappling : passages, gardes, enchaînements de soumissions." },
+  { id: "atelier", day: 3, start: "15:00", end: "16:00", name: "Atelier perfectionnement", kind: "tech", stage: "Atelier", note: "Full Access", text: "Atelier perso : on approfondit ses compétences sur ses points à travailler." },
+  { id: "liaison", day: 3, start: "16:00", end: "17:00", name: "Liaison", kind: "tech", stage: "Liaison", note: "Full Access", text: "On connecte le MMA et la Luta Livre." },
+  { id: "sparring", day: 4, start: "18:45", end: "20:00", name: "Sparring progressif", kind: "sparring", stage: "Sparring", text: "On applique et on s'améliore. Ouvert à tous les adultes, engagement adapté : niveau 1 découverte et apprentissage, niveau 2 intensité contrôlée, Team travail plus avancé." },
+  { id: "team-ven", day: 4, start: "20:00", end: "21:30", name: "Fight Art Team", kind: "sparring", stage: "Team", text: "Sparring compétition, préparation de combats, coaching individuel." },
+  { id: "ll-expert", day: 5, start: "10:45", end: "12:00", name: "Luta Livre Expert", kind: "tech", stage: "Expert", note: "Full Access", text: "Luta Livre niveau avancé." },
+  { id: "team-sam", day: 5, start: "12:00", end: "13:00", name: "Fight Art Team", kind: "tech", stage: "Team", text: "Préparation technique, tactique et mentale." },
 ];
+export const CLUB_METHOD = {
+  motto: "Une méthode. Une progression. Un état d'esprit.",
+  goal: "Comprendre le combat dans sa globalité pour devenir un pratiquant complet, intelligent et performant.",
+  steps: [["Découverte", "On apprend les bases."], ["Développement", "On construit les systèmes."], ["Ateliers", "On approfondit ses compétences."], ["Liaison", "On connecte MMA et Luta Livre."], ["Sparring", "On applique et on s'améliore."]],
+};
 export const PARCOURS = [
   { id: "essentielle", label: "Essentielle", classes: ["mma-fond", "ll-fond", "sparring"] },
   { id: "mma", label: "MMA", classes: ["mma-fond", "mma-dev", "sparring"] },

@@ -1,5 +1,6 @@
 import { store, todayKey, addDays, dayIndex } from "../store.js";
 import { DAYS } from "../data.js";
+import { openPlanning, loadThemes, cachedThemes, mondayOf } from "./planning.js";
 import { esc, icon, meter } from "../ui.js";
 import { dayPlan, readinessAdvice, alerts, nutritionTargets, dayTotals, frDate, isMinor } from "../engine.js";
 import { openCheckin, openBlock } from "./sessions.js";
@@ -77,7 +78,8 @@ export function renderToday(el, ctx, params = {}) {
     ${isToday ? alertsHtml : ""}
     ${isToday && advice ? `<div class="stack" style="margin-bottom:6px">${advice}</div>` : ""}
     ${compet}
-    ${clubCard ? `<section class="panel" style="margin-top:12px"><h3>Au club ${isToday ? "aujourd'hui" : esc(frDate(key, { weekday: "long" }))}</h3>${clubCard.classes.map((c) => `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b>${c.note ? `<div class="tiny muted">${esc(c.note)}</div>` : ""}</div><span class="badge num">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`).join("")}</section>` : ""}
+    ${clubCard ? `<section class="panel" style="margin-top:12px"><h3>Au club ${isToday ? "aujourd'hui" : esc(frDate(key, { weekday: "long" }))}</h3>${clubCard.classes.map((c) => { const t = cachedThemes(mondayOf(key))[c.id]; return `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b><div class="tiny muted">${esc(c.stage)}</div><div class="small" data-theme-for="${c.id}">${t ? `Thème : <b>${esc(t)}</b>` : ""}</div></div><span class="badge num" style="flex:none">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`; }).join("")}
+      <button class="btn ghost small" data-planning style="margin-top:12px">Planning du club</button></section>` : ""}
     ${isToday ? `<button class="panel row between assist-cta" data-act="assistant" style="width:100%;text-align:left;margin-top:12px">
       <div><div style="font-weight:700">Un blocage, une question ?</div><div class="muted small">Technique, peur, nutrition, prépa, mental : parle à l'assistant.</div></div>
       <span class="icon-btn" style="background:var(--tape);color:var(--tape-ink);flex:none">${icon("chat")}</span></button>` : ""}
@@ -93,6 +95,8 @@ export function renderToday(el, ctx, params = {}) {
   el.querySelector("[data-act=reply]")?.addEventListener("click", () => openThread(lastMsg.from_id, lastMsg.from_name, ctx));
   el.querySelectorAll("[data-act=checkin]").forEach((b) => b.addEventListener("click", () => openCheckin(key, ctx.refresh)));
   el.querySelector("[data-act=assistant]")?.addEventListener("click", () => ctx.go("assistant"));
+  el.querySelector("[data-planning]")?.addEventListener("click", () => openPlanning(key));
+  if (clubCard) loadThemes(mondayOf(key)).then((th) => { clubCard.classes.forEach((c) => { const box = el.querySelector(`[data-theme-for="${c.id}"]`); if (box && th[c.id]) box.innerHTML = `Thème : <b>${esc(th[c.id])}</b>`; }); });
   el.querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => { selDay = b.dataset.day === today ? null : b.dataset.day; ctx.refresh(); }));
   el.querySelectorAll("[data-week]").forEach((b) => b.addEventListener("click", () => { selDay = addDays(key, Number(b.dataset.week)); if (selDay === today) selDay = null; ctx.refresh(); }));
   el.querySelector("[data-act=food]")?.addEventListener("click", () => ctx.go("food", { add: true }));

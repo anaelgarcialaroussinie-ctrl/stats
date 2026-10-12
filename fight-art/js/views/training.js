@@ -5,6 +5,7 @@ import { DRILL_GROUPS, DRILL_FORMATS, STRENGTH, LEVELS, DAYS } from "../data.js"
 import { runTimer } from "./timer.js";
 import { openBlock, openLog } from "./sessions.js";
 import { guideInline } from "../drill-guides.js";
+import { openPlanning } from "./planning.js";
 
 const LEVEL_PRIORITIES = {
   1: ["Chutes et relevé technique", "Garde et déplacements", "Jab, direct, défense de base", "Sprawl, double-leg, single-leg", "Positions : montée, contrôle latéral, dos, garde", "Sorties : shrimp et pont", "Étranglement arrière et guillotine"],
@@ -31,6 +32,8 @@ export function renderTraining(el, ctx) {
 
     ${strength ? `<section class="panel row between" style="margin-top:14px"><div><div style="font-weight:700">${esc(strength.title)}</div><div class="muted small">${esc(strength.detail)}</div></div><button class="btn small" data-strength>Ouvrir</button></section>` : ""}
 
+    <button class="panel row between" data-planning style="width:100%;text-align:left;margin-top:14px"><div><div style="font-weight:700">Planning du club</div><div class="muted small">Horaires, contenu des cours et thème de la semaine</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
+
     <h2 class="h-sec">Minuteur de rounds</h2>
     <div class="chips">${DRILL_FORMATS.map((f) => `<button class="chip" data-timer="${f.id}">${esc(f.label)}</button>`).join("")}</div>
 
@@ -55,6 +58,7 @@ export function renderTraining(el, ctx) {
     }).join("")}</ul></section>` : ""}
   `;
 
+  el.querySelector("[data-planning]").addEventListener("click", () => openPlanning());
   el.querySelector("[data-strength]")?.addEventListener("click", () => openBlock(key, strength, ctx.refresh, ctx.go));
   el.querySelectorAll("[data-timer]").forEach((b) => b.addEventListener("click", () => {
     const f = DRILL_FORMATS.find((x) => x.id === b.dataset.timer);

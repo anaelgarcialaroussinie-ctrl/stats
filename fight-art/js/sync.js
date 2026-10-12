@@ -120,6 +120,10 @@ export const sync = {
   async links() { if (!token) return []; return rpc("fap_links", { p_token: token }); },
   async saveLink(l) { return rpc("fap_link_save", { p_token: token, p_id: l.id || null, p_title: l.title, p_url: l.url, p_topic: l.topic, p_note: l.note || "", p_archived: Boolean(l.archived) }); },
 
+  // thèmes des cours de la semaine (le coach les fixe, tout le monde les voit)
+  async themes(from, to) { if (!token) return []; return rpc("fap_themes", { p_token: token, p_from: from, p_to: to }); },
+  async saveTheme(week, cls, theme) { return rpc("fap_theme_save", { p_token: token, p_week: week, p_class: cls, p_theme: theme }); },
+
   // formation vidéo privée du coach
   async library() { if (!token || meta.role !== "coach") return []; return rpc("fap_library", { p_token: token }); },
 
