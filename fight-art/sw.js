@@ -1,5 +1,5 @@
 // Cache hors ligne : l'appli s'ouvre même sans réseau.
-const VERSION = "fap-v37";
+const VERSION = "fap-v38";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/app.css", "./fonts/archivo.ttf",
   "./js/app.js", "./js/store.js", "./js/engine.js", "./js/data.js", "./js/ui.js", "./js/off.js", "./js/sync.js", "./js/config.js",
