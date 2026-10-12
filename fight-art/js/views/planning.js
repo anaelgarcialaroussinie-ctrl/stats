@@ -23,8 +23,6 @@ export function seasonCard(key, p, { compact = false } = {}) {
   </div>`;
 }
 
-// cours qui suivent le programme de la saison (MMA, Luta Livre, liaison)
-const inProgram = (id) => MMA_CLASSES.includes(id) || LUTA_CLASSES.includes(id) || id === "liaison";
 // thème d'une semaine d'un programme du coach, avec ses notes et ses vidéos
 export function programTheme(pw) {
   if (pw.off) return `<span class="tiny muted">${esc(pw.prog.name)} · semaine de vacances</span>`;
@@ -33,13 +31,6 @@ export function programTheme(pw) {
     ${w.note ? `<div class="small" style="margin-top:2px">${esc(w.note)}</div>` : ""}
     ${(w.videos || []).length ? `<div class="stack" style="gap:2px;margin-top:4px">${w.videos.filter((v) => safeUrl(v.url)).map((v) => `<a class="small" href="${esc(v.url)}" target="_blank" rel="noopener">▶ ${esc(v.title || "Vidéo")}</a>`).join("")}</div>` : ""}`;
 }
-// thème global d'un cours pour une semaine du programme
-function classTheme(c, sw) {
-  const w = sw.week, l = sw.luta;
-  const t = LUTA_CLASSES.includes(c.id) && l ? l.title : c.id === "liaison" && l ? `${w.title} × ${l.title}` : w.title;
-  return `<span class="tiny muted">Thème de la semaine · S${sw.n}</span><div><b>${esc(t)}</b></div>`;
-}
-
 const cache = {}; // lundi → { classe: thème }
 export const mondayOf = (key) => addDays(key, -dayIndex(key));
 export const cachedThemes = (monday) => cache[monday] || {};
@@ -82,15 +73,7 @@ export function openPlanning(startKey = todayKey()) {
               <span class="badge num" style="flex:none">${hm(c.start)} – ${hm(c.end)}</span>
             </div>
             <p class="small" style="margin:8px 0 0">${esc(c.text)}</p>
-            <div class="theme-line">${(() => {
-              const pw = programFor(c.id, addDays(monday, di));
-              if (pw) return programTheme(pw) + (th[c.id] ? `<div class="small" style="margin-top:6px"><span class="tiny muted">Outils du coach</span><br><b>${esc(th[c.id])}</b></div>` : "");
-              const sw = inProgram(c.id) ? lutaWeek(addDays(monday, di)) : null;
-              const season = sw?.week ? classTheme(c, sw) : sw?.off ? `<span class="tiny muted">Semaine de vacances</span>` : "";
-              const extra = th[c.id] ? `<div class="small" style="margin-top:6px"><span class="tiny muted">${season ? "Outils du coach" : "Thème de la semaine"}</span><br><b>${esc(th[c.id])}</b></div>` : "";
-              return season || extra ? season + extra : `<span class="tiny muted">Thème de la semaine : bientôt annoncé</span>`;
-            })()}
-              ${coach ? `<button class="btn ghost small" data-edit="${c.id}" style="margin-top:6px">${icon("edit")} ${th[c.id] ? "Modifier" : inProgram(c.id) && seasonWeek(addDays(monday, di))?.week ? "Ajouter mes outils techniques" : "Fixer le thème"}</button>` : ""}</div>
+            ${(() => { const pw = programFor(c.id, addDays(monday, di)); return pw ? `<div class="theme-line">${programTheme(pw)}</div>` : ""; })()}
           </section>`).join("") : `<p class="muted small" style="margin:6px 0 0">Fermé</p>`}`;
       }).join("")}
       <h3 class="sys-h" style="margin-top:18px">La méthode</h3>
@@ -104,21 +87,6 @@ export function openPlanning(startKey = todayKey()) {
     const w = e.target.closest("[data-w]"); if (w) { monday = addDays(monday, Number(w.dataset.w)); refresh(); return; }
     if (e.target.closest("[data-cal]")) { openCalendar(() => openPlanning(monday)); return; }
     if (e.target.closest("[data-progs]")) { openPrograms(); return; }
-    const ed = e.target.closest("[data-edit]");
-    if (ed) {
-      const box = ed.closest(".theme-line"); const id = ed.dataset.edit; const cur = cachedThemes(monday)[id] || "";
-      box.innerHTML = `<label class="field"><span>Outils techniques ou thème du cours</span><input class="input" data-theme-in maxlength="300" value="${esc(cur)}" placeholder="Ex. Double-leg contre la cage et défense de guillotine"></label>
-        <div class="row" style="gap:8px;margin-top:8px"><button class="btn tape-btn small" data-save="${id}">Enregistrer</button><button class="btn ghost small" data-cancel>Annuler</button></div>`;
-      box.querySelector("[data-theme-in]").focus(); return;
-    }
-    if (e.target.closest("[data-cancel]")) { draw(); return; }
-    const sv = e.target.closest("[data-save]");
-    if (sv) {
-      const val = sv.closest(".theme-line").querySelector("[data-theme-in]").value.trim();
-      sv.disabled = true; sv.textContent = "Enregistrement…";
-      try { await sync.saveTheme(monday, sv.dataset.save, val); cache[monday] = { ...cachedThemes(monday), [sv.dataset.save]: val }; if (!val) delete cache[monday][sv.dataset.save]; toast(val ? "Thème enregistré" : "Thème retiré"); draw(); }
-      catch { sv.disabled = false; sv.textContent = "Enregistrer"; toast("Impossible : vérifie ta connexion"); }
-    }
   });
   refresh();
 }

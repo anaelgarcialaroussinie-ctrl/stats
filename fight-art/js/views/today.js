@@ -85,7 +85,7 @@ export function renderToday(el, ctx, params = {}) {
     ${tips.length ? `<section class="panel tips ${tips.some((x) => x.lvl === "bad") ? "is-bad" : tips.some((x) => x.lvl === "warn") ? "is-warn" : ""}"><h3>Conseils du jour</h3><ul class="bul">${tips.map((x) => `<li class="small">${esc(x.t)}</li>`).join("")}</ul></section>` : ""}
     ${compet}
     ${clubCard ? `<section class="panel" style="margin-top:12px"><h3>Au club ${isToday ? "aujourd'hui" : esc(frDate(key, { weekday: "long" }))}</h3>
-      ${clubCard.classes.some((c) => ["mma-fond", "mma-dev", "sparring", "team-ven", "team-sam", "ll-fond", "ll-dev", "ll-expert", "liaison"].includes(c.id)) ? `<div style="margin-top:10px">${seasonCard(key, p, { compact: true })}</div>` : ""}${clubCard.classes.map((c) => { const t = cachedThemes(mondayOf(key))[c.id]; return `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b><div class="tiny muted">${esc(c.stage)}</div><div class="small" data-theme-for="${c.id}">${t ? `Thème : <b>${esc(t)}</b>` : ""}</div></div><span class="badge num" style="flex:none">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`; }).join("")}
+      ${clubCard.classes.map((c) => { return `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b><div class="tiny muted">${esc(c.stage)}</div></div><span class="badge num" style="flex:none">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`; }).join("")}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost small" data-planning>Planning du club</button>${isFuture ? "" : `<button class="btn small" data-classnote>${icon("edit")} Ma fiche du cours</button>`}</div></section>` : ""}
     <h2 class="h-sec">${isToday ? "Programme du jour" : isFuture ? "Programme prévu" : "Programme de ce jour"}</h2>
     <section class="panel"><ol class="plan">${items}</ol></section>
@@ -108,7 +108,6 @@ export function renderToday(el, ctx, params = {}) {
     openNote(null, ctx.refresh, { title: th[c.id] || "", source: c.name, date: key, cat: c.name.includes("Luta") ? "Luta Livre" : "Debout" });
   });
   if (clubCard && !cachedSeason()) loadSeason().then((x) => { if (x && el.isConnected) ctx.refresh(); });
-  if (clubCard) loadThemes(mondayOf(key)).then((th) => { clubCard.classes.forEach((c) => { const box = el.querySelector(`[data-theme-for="${c.id}"]`); if (box && th[c.id]) box.innerHTML = `Thème : <b>${esc(th[c.id])}</b>`; }); });
   el.querySelectorAll("[data-day]").forEach((b) => b.addEventListener("click", () => { selDay = b.dataset.day === today ? null : b.dataset.day; ctx.refresh(); }));
   el.querySelectorAll("[data-week]").forEach((b) => b.addEventListener("click", () => { selDay = addDays(key, Number(b.dataset.week)); if (selDay === today) selDay = null; ctx.refresh(); }));
   el.querySelector("[data-act=food]")?.addEventListener("click", () => ctx.go("food", { add: true }));

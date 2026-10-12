@@ -96,12 +96,21 @@ export const MOVEMENT = {
 // Bibliothèque de drills solo
 export const DRILL_GROUPS = [
   {
-    id: "wrestling", title: "Lutte et Luta Livre debout",
+    id: "wrestling", title: "Lutte",
+    note: "Les 7 compétences de base de la lutte (méthode USA Wrestling) : position, déplacement, changement de niveau, pénétration, soulever, pas arrière, arc arrière. Puis les drills qui en découlent.",
     drills: [
-      { name: "Garde et déplacements", how: "Avancer, reculer, tourner, changer de jambe avant, sans jamais croiser les pieds." },
-      { name: "Pas de pénétration (drop step)", how: "Changement de niveau, genou au sol, tête haute, remonter en garde." },
+      { name: "Position (garde de lutte)", how: "Pieds un peu plus larges que les épaules, genoux fléchis, dos droit, tête haute, coudes près du corps, mains devant." },
+      { name: "Déplacement en garde (motion)", how: "Avancer, reculer, tourner, changer de jambe avant, sans jamais croiser les pieds ni se redresser." },
+      { name: "Changement de niveau", how: "Descendre et remonter avec les jambes, jamais en pliant le dos. Tête haute, sans perdre la garde." },
+      { name: "Pas de pénétration (drop step)", how: "Changement de niveau, grand pas avant, genou au sol, tête haute, remonter en garde." },
+      { name: "Soulever (lifting)", how: "Hanches sous l'adversaire, dos droit, la force vient des jambes. En solo : avec un sac de frappe ou un sac de sable." },
+      { name: "Pas arrière (back step)", how: "Le pas pivot des projections : pied qui passe derrière, dos qui tourne, hanches basses." },
+      { name: "Arc arrière (back arch)", how: "Pont arrière contrôlé : hanches vers l'avant, regard vers le tapis derrière soi. Contre un mur au début." },
       { name: "Sprawl", how: "Hanches au sol, jambes en arrière, revenir en garde le plus vite possible." },
-      { name: "Pas de pénétration en rotation", how: "Pas de pénétration, puis rotation sur le genou et le pied pour finir en angle. Des deux côtés." },
+      { name: "Shot + virage (turn the corner)", how: "Pas de pénétration, puis pivot sur le genou au sol en ramenant la jambe arrière en arc de cercle pour finir en angle. Des deux côtés." },
+      { name: "Duck under", how: "Main sur le biceps adverse, changement de niveau, la tête passe sous son bras, pas d'angle, prise du dos." },
+      { name: "Snap down", how: "Mains sur la nuque, coup sec vers le bas en reculant d'un pas, pour casser la posture et faire tomber la tête." },
+      { name: "Lutte de mains (hand fighting)", how: "Casser les saisies, contrôler les poignets, prendre le 2 contre 1, le collier, l'underhook. Toujours en mouvement." },
       { name: "Shots en shadow", how: "Feinte, entrée, finition double-leg ou single-leg, retour en garde." },
     ],
   },
