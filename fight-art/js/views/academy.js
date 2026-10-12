@@ -7,7 +7,8 @@ import { openExplorer, editSystem, systemTree, drillSystem } from "./systems.js"
 import { LUTA_INTRO, GLOSSARY, LESSON, GRADES, CYCLES } from "../luta-data.js";
 import { sync } from "../sync.js";
 import { openDiscussion } from "./discussion.js";
-import { openModel, openModelSearch } from "./models.js";
+import { openModel, openModelSearch, faceSlot, fillFaces } from "./models.js";
+import { openStyleLab, openStyle } from "./stylelab.js";
 import { openNote, openNoteRead, openNotesList, noteCard } from "./notes.js";
 
 const moveLabel = (id) => MOVES.find((m) => m.id === id)?.label || id;
@@ -62,8 +63,15 @@ export function renderAcademy(el, ctx) {
     <h2 class="h-sec">Mes modèles UFC</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Choisis tes combattants préférés : comment ils gagnent, où et d'où ils frappent, leurs chiffres comparés à leur catégorie, et ce que tu peux leur piquer.</p>
-      ${(st.favFighters || []).length ? `<ul class="list">${st.favFighters.map((n) => `<li role="button" tabindex="0" data-model="${esc(n)}"><div style="font-weight:700">${esc(n)}</div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : ""}
+      ${(st.favFighters || []).length ? `<ul class="list">${st.favFighters.map((n) => `<li role="button" tabindex="0" data-model="${esc(n)}">${faceSlot(n)}<div style="font-weight:700;flex:1">${esc(n)}</div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : ""}
       <button class="btn ${(st.favFighters || []).length ? "ghost" : "tape-btn"} block" data-models style="margin-top:10px">${icon("search")} ${(st.favFighters || []).length ? "Ajouter un modèle" : "Choisir mes modèles"}</button>
+    </section>
+
+    <h2 class="h-sec">Labo de style</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Mélange plusieurs combattants, croise leurs chiffres avec ton gabarit et ton profil : l'appli en tire un style, ses piliers, ses armes et un plan pour le travailler. Crée-en autant que tu veux.</p>
+      ${(st.styles || []).length ? `<ul class="list">${st.styles.map((x) => `<li role="button" tabindex="0" data-style="${x.id}"><div style="min-width:0;flex:1"><div style="font-weight:700">${esc(x.name)}</div><div class="meta">${esc(x.fighters.join(" + "))}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : ""}
+      <button class="btn tape-btn block" data-lab style="margin-top:10px">${icon("plus")} Créer un style</button>
     </section>
 
     <h2 class="h-sec">Mes systèmes</h2>
@@ -116,6 +124,9 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-disc]").forEach((b) => b.addEventListener("click", () => openDiscussion({ tab: b.dataset.disc }, (preset) => editCombo(null, ctx.refresh, preset))));
   const trap = (preset) => editCombo(null, ctx.refresh, preset);
   el.querySelector("[data-models]").addEventListener("click", () => openModelSearch(trap, ctx.refresh));
+  fillFaces(el);
+  el.querySelector("[data-lab]").addEventListener("click", () => openStyleLab(null, trap, ctx.refresh));
+  el.querySelectorAll("[data-style]").forEach((li) => li.addEventListener("click", () => openStyle((st.styles || []).find((x) => x.id === li.dataset.style), trap, ctx.refresh)));
   el.querySelectorAll("[data-model]").forEach((li) => li.addEventListener("click", () => openModel(li.dataset.model, trap, ctx.refresh)));
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
   el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));

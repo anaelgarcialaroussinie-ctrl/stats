@@ -5,6 +5,34 @@ import { openDiscussion } from "./discussion.js";
 import { openExplorer } from "./systems.js";
 
 let DB = null;
+
+// photos des combattants : image libre de droits de leur page Wikipédia (chargée à la demande, gardée en cache)
+const FACE_KEY = "fap:faces";
+let faces = {}; try { faces = JSON.parse(localStorage.getItem(FACE_KEY) || "{}"); } catch {}
+const pending = {};
+export function face(name) {
+  if (name in faces) return Promise.resolve(faces[name]);
+  if (pending[name]) return pending[name];
+  const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=3&gsrsearch=${encodeURIComponent(`"${name}" mixed martial artist`)}&prop=pageimages|description&piprop=thumbnail&pithumbsize=240`;
+  pending[name] = fetch(url).then((r) => r.json()).then((j) => {
+    const pages = Object.values(j?.query?.pages || {}).sort((a, b) => a.index - b.index);
+    const hit = pages.find((p) => /martial|fighter|UFC|wrestler|boxer|kickboxer/i.test(p.description || "") && p.thumbnail?.source);
+    return hit ? hit.thumbnail.source : "";
+  }).catch(() => null).then((src) => {
+    if (src !== null) { faces[name] = src; try { localStorage.setItem(FACE_KEY, JSON.stringify(faces)); } catch {} }
+    delete pending[name]; return src || "";
+  });
+  return pending[name];
+}
+const initialsOf = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+export const faceSlot = (name, cls = "face") => `<span class="${cls}" data-face="${esc(name)}">${faces[name] ? `<img src="${esc(faces[name])}" alt="" loading="lazy">` : `<b>${esc(initialsOf(name))}</b>`}</span>`;
+// remplit les emplacements photo présents dans un conteneur (4 recherches à la fois)
+export async function fillFaces(root) {
+  const slots = [...root.querySelectorAll("[data-face]")].filter((el) => !el.querySelector("img"));
+  let i = 0;
+  const worker = async () => { while (i < slots.length) { const el = slots[i++]; const src = await face(el.dataset.face); if (src && el.isConnected) el.innerHTML = `<img src="${esc(src)}" alt="" loading="lazy">`; } };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+}
 export async function loadFighters() {
   if (DB) return DB;
   const r = await fetch("data/fighters.json");
@@ -12,13 +40,14 @@ export async function loadFighters() {
   DB = await r.json();
   return DB;
 }
+export const fighterData = async (name) => (await loadFighters()).f.find((x) => x.n === name);
 export const favorites = () => store.get().favFighters || [];
 const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const pct = (x) => (x == null ? "–" : `${Math.round(x * 100)} %`);
-const n1 = (x) => (x == null ? "–" : x.toLocaleString("fr-FR", { maximumFractionDigits: 1, minimumFractionDigits: 1 }));
+export const pct = (x) => (x == null ? "–" : `${Math.round(x * 100)} %`);
+export const n1 = (x) => (x == null ? "–" : x.toLocaleString("fr-FR", { maximumFractionDigits: 1, minimumFractionDigits: 1 }));
 
 // finitions → fiche correspondante dans l'appli
-const FIN_LINK = {
+export const FIN_LINK = {
   "High kick": ["w", "highkick"], "Genou sauté": ["w", "flyknee"], "Backfist retourné": ["w", "sbf"], "Coude retourné": ["w", "sbe"],
   "Coup de pied retourné": ["w", "sbk"], "Wheel kick": ["w", "wheel"], "Front kick au visage": ["w", "frontkick"],
   "Genou à la tête au clinch": ["w", "kneeclinch"], "Coups de poing au corps": ["w", "liver"], "Coup de pied au corps": ["w", "midkick"],
@@ -28,7 +57,7 @@ const FIN_LINK = {
 };
 
 // ce qu'on peut piquer à ce combattant, d'après ses chiffres comparés à sa catégorie
-function inspirations(f, a) {
+export function inspirations(f, a) {
   const out = [];
   const more = (k, x = 1.35) => f[k] != null && a[k] && f[k] >= a[k] * x;
   if (more("slpm", 1.3)) out.push({ text: `Volume : ${n1(f.slpm)} frappes placées par minute, contre ${n1(a.slpm)} en moyenne dans sa catégorie. Il enchaîne, il ne frappe pas à l'unité.`, act: ["d", "questions"], cta: "Les combinaisons" });
@@ -46,7 +75,7 @@ function inspirations(f, a) {
   return out;
 }
 
-function bars(rows) {
+export function bars(rows) {
   return rows.map(([l, v, avg]) => `<div class="mbar"><span class="small">${esc(l)}</span><div class="mbar-track"><i style="width:${Math.round((v || 0) * 100)}%"></i>${avg != null ? `<b style="left:${Math.round(avg * 100)}%" title="Moyenne de sa catégorie"></b>` : ""}</div><span class="small num">${pct(v)}</span></div>`).join("");
 }
 
@@ -66,6 +95,7 @@ export async function openModel(name, onTrap, after) {
     return `<tr><td>${esc(label)}</td><td class="num"><b>${fmt(v)}</b> ${mark}</td><td class="num muted">${fmt(avg)}</td></tr>`;
   };
   body.innerHTML = `
+    <div class="model-head">${faceSlot(f.n, "face face-xl")}</div>
     <div class="row between" style="align-items:flex-start;gap:10px">
       <div><span class="badge tiny">${esc(f.wc)}</span> <span class="badge tiny">${esc(f.p)}</span>
         <div class="display num" style="font-size:34px;margin-top:6px">${w}-${l}${d ? "-" + d : ""}</div>
@@ -103,7 +133,8 @@ export async function openModel(name, onTrap, after) {
 
     <p class="notice small" style="margin-top:14px">Les statistiques officielles ne disent pas quels enchaînements il utilise. Pour ça : regarde ses combats, note ses combinaisons dans « Mes combos fétiches ».</p>
     <a class="btn ghost block" href="https://www.youtube.com/results?search_query=${encodeURIComponent(f.n + " UFC highlights breakdown")}" target="_blank" rel="noopener">${icon("play")} Chercher ses combats sur YouTube</a>
-    <p class="hint">Source : ${esc(db.source)}. Le profil de style vient de l'analyse Fight Art Performance de 1 073 combattants UFC.</p>`;
+    <p class="hint">Source : ${esc(db.source)}. Le profil de style vient de l'analyse Fight Art Performance de 1 073 combattants UFC. Photo : Wikipédia, quand elle existe.</p>`;
+  fillFaces(body);
 
   body.addEventListener("click", (e) => {
     if (e.target.closest("[data-fav]")) {
@@ -132,9 +163,10 @@ export function openModelSearch(onTrap, after) {
     const paint = () => {
       const q = norm(body.querySelector("[data-q]").value.trim());
       let list = db.f.filter((f) => (!wc || f.wc === wc) && (!q || norm(f.n).includes(q)));
-      list = list.sort((x, y) => (q ? 0 : y.last.localeCompare(x.last)) || y.rec[0] - x.rec[0]).slice(0, 40);
+      list = list.sort((x, y) => (q ? 0 : y.last.localeCompare(x.last)) || y.rec[0] - x.rec[0]).slice(0, 30);
       const favs = favorites();
-      body.querySelector("[data-res]").innerHTML = list.length ? `<ul class="list">${list.map((f) => `<li role="button" tabindex="0" data-open="${esc(f.n)}"><div style="min-width:0"><div style="font-weight:700">${esc(f.n)}${favs.includes(f.n) ? ` <span class="insigne">Modèle</span>` : ""}</div><div class="meta">${esc(f.wc)} · ${f.rec[0]}-${f.rec[1]}${f.rec[2] ? "-" + f.rec[2] : ""} · ${esc(f.p)}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : `<p class="muted small">Aucun combattant trouvé (au moins 3 combats UFC).</p>`;
+      body.querySelector("[data-res]").innerHTML = list.length ? `<ul class="list">${list.map((f) => `<li role="button" tabindex="0" data-open="${esc(f.n)}">${faceSlot(f.n)}<div style="min-width:0;flex:1"><div style="font-weight:700">${esc(f.n)}${favs.includes(f.n) ? ` <span class="insigne">Modèle</span>` : ""}</div><div class="meta">${esc(f.wc)} · ${f.rec[0]}-${f.rec[1]}${f.rec[2] ? "-" + f.rec[2] : ""} · ${esc(f.p)}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : `<p class="muted small">Aucun combattant trouvé (au moins 3 combats UFC).</p>`;
+      fillFaces(body.querySelector("[data-res]"));
     };
     body.querySelector("[data-q]").addEventListener("input", paint);
     body.addEventListener("click", (e) => {

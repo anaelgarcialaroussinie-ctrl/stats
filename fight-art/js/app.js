@@ -185,7 +185,7 @@ function openProfile() {
     const n = (x) => (f[x].value ? Number(String(f[x].value).replace(",", ".")) : null);
     if (p.classes.length) p.clubDays = clubDaysOf(p);
     Object.assign(p, { weight: n("weight"), height: n("height"), reach: n("reach"), birthYear: n("birthYear"), level: Number(f.level.value), goal: f.goal.value, competitionDate: f.competitionDate.value, equipment: f.equipment.value, trackCycle: f.trackCycle?.checked || false });
-    store.update((s) => { s.profile = { ...p, photo: s.profile.photo, banner: s.profile.banner, badges: s.profile.badges }; ["photo", "banner"].forEach((k) => { if (!s.profile[k]) delete s.profile[k]; }); });
+    store.update((s) => { s.profile = { ...p, photo: s.profile.photo, banner: s.profile.banner, badges: s.profile.badges, styleName: s.profile.styleName }; ["photo", "banner"].forEach((k) => { if (!s.profile[k]) delete s.profile[k]; }); });
     closeSheet(); toast("Profil mis à jour"); render();
   });
   body.querySelector("[data-savenow]")?.addEventListener("click", async (e) => {
@@ -233,7 +233,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "18";
+const APP_VERSION = "19";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});

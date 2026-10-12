@@ -29,6 +29,7 @@ export function profileCard(p = {}, { models = [] } = {}) {
       ${avatarHtml(p.name || "", p.photo, "avatar avatar-xl pcard-avatar")}
       <div class="pcard-name">${esc(p.name || "")}</div>
       <div class="pcard-badges" data-badges-view>${badges.length ? badges.map((id) => `<span class="insigne">${esc(badgeLabel(id))}</span>`).join("") : `<span class="tiny muted">Aucun insigne choisi</span>`}</div>
+      ${p.styleName ? `<div class="small" style="margin-top:8px">Style : <b>${esc(p.styleName)}</b></div>` : ""}
       ${models.length ? `<div class="tiny muted" style="margin-top:8px">Modèles : ${models.map(esc).join(" · ")}</div>` : ""}
     </div>
   </div>`;

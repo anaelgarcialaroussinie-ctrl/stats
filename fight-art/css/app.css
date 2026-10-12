@@ -484,3 +484,17 @@ table.stats td.num { white-space: nowrap; }
 .status.st-todo { color: var(--warn); border-color: var(--warn); }
 .status.st-wip { color: var(--ink); border-color: var(--muted); }
 .status.st-ok { color: var(--tape); border-color: var(--tape); }
+
+.face { width: 42px; height: 42px; border-radius: 50%; flex: none; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; }
+.face img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
+.face b { font-size: 13px; color: var(--muted); }
+.face-xl { width: 96px; height: 96px; }
+.face-xl b { font-size: 28px; }
+.face-sm { width: 30px; height: 30px; }
+.face-sm b { font-size: 10px; }
+.model-head { display: flex; justify-content: center; margin-bottom: 10px; }
+.faces-row { display: flex; }
+.faces-row .face { margin-left: -8px; border: 2px solid var(--surface); }
+.faces-row .face:first-child { margin-left: 0; }
+.chip:has(.face) { display: inline-flex; align-items: center; gap: 6px; padding-left: 4px; }
+.chip .face-sm { margin: 0; }
