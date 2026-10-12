@@ -1,5 +1,6 @@
 import { store, uid, todayKey } from "../store.js";
 import { myNote, studyNotes } from "../study-notes.js";
+import { openLocalVideos } from "./localvids.js";
 import { esc, icon, openSheet, closeSheet, toast, segBar, bindSeg } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
@@ -113,6 +114,11 @@ export function renderAcademy(el, ctx) {
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Certification Luta Livre de Nicolas Renier : les 85 vidéos rangées par module, avec tes notes. Visible par toi seul.</p>
       <button class="btn tape-btn block" data-library>${icon("play")} Ouvrir la formation</button>
+    </section>
+    <h2 class="h-sec">Ma vidéothèque privée</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Tes séminaires et instructionals, lus directement sur ton disque dur depuis ton ordinateur, rangés par dossier, avec tes notes. Visible par toi seul, rien n'est mis en ligne.</p>
+      <button class="btn tape-btn block" data-localvids>${icon("play")} Ouvrir ma vidéothèque</button>
     </section>` : ""}
 
     </div><div data-seg="jeu3">
@@ -148,6 +154,7 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-style]").forEach((li) => li.addEventListener("click", () => openStyle((st.styles || []).find((x) => x.id === li.dataset.style), trap, ctx.refresh)));
   el.querySelectorAll("[data-model]").forEach((li) => li.addEventListener("click", () => openModel(li.dataset.model, trap, ctx.refresh)));
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
+  el.querySelector("[data-localvids]")?.addEventListener("click", openLocalVideos);
   el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));
   drawLinks(el, ctx);
   el.querySelector("[data-newscout]").addEventListener("click", () => editScout(null, ctx.refresh));
