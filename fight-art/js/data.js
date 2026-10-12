@@ -150,7 +150,7 @@ export const DRILL_GROUPS = [
       { name: "Garde et déplacements", how: "Avancer, reculer, tourner, changer de jambe avant, sans jamais croiser les pieds." },
       { name: "Pas de pénétration (drop step)", how: "Changement de niveau, genou au sol, tête haute, remonter en garde." },
       { name: "Sprawl", how: "Hanches au sol, jambes en arrière, revenir en garde le plus vite possible." },
-      { name: "Lutte de mains en shadow", how: "Casser les saisies, contrôler les poignets, prendre le 2 sur 1, sans jamais rester immobile." },
+      { name: "Pas de pénétration en rotation", how: "Pas de pénétration, puis rotation sur le genou et le pied pour finir en angle. Des deux côtés." },
       { name: "Shots en shadow", how: "Feinte, entrée, finition double-leg ou single-leg, retour en garde." },
     ],
   },
