@@ -11,6 +11,20 @@ import { badgeLabel } from "./identity.js";
 const KEYS = ["slpm", "sapm", "acc", "head", "body", "leg", "dist", "clinch", "ground", "td15", "tdacc", "tdd", "ctrl", "sub15", "kd15", "sdef"];
 const mean = (xs) => { const v = xs.filter((x) => x != null && !isNaN(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 
+const SPAR = {
+  volume: ["Sparring technique 3 × 3 min : un enchaînement de 3 coups toutes les 10 secondes, toujours fini par une sortie d'angle.", "Sparring à thème : l'un met la pression, l'autre doit garder la distance au jab et au volume.", "Sparring libre : compte tes enchaînements, vise plus que ton partenaire à chaque round."],
+  kick: ["Sparring jambes : un point par low kick placé, le partenaire défend en checkant.", "Sparring à thème : kicks uniquement derrière les poings, jamais en première intention.", "Sparring libre : un low kick ou un middle dans chaque enchaînement."],
+  clinch: ["Départ au clinch contre le mur : gagner l'underhook, genoux au corps, se décoller.", "Sparring à thème : entrer au clinch derrière une frappe, l'autre doit se décoller.", "Sparring libre : chaque échange finit au clinch ou par une sortie."],
+  wrestle: ["Départ au centre : une tentative d'amenée par round minimum, l'autre défend et se relève.", "Départ contre la cage : ceinture arrière contre se décoller.", "Sparring libre MMA : frapper pour entrer, amener, contrôler, frapper au sol."],
+  grapple: ["Départ en front headlock : guillotine ou d'arce contre se relever.", "Départ au dos : finir l'étranglement contre sortir.", "Sparring libre : chaque amenée doit déboucher sur une position dominante puis une tentative de soumission."],
+};
+const SC_FOCUS = {
+  volume: "Priorité au jour Rapide : lancers en rotation, sauts, sprints de 6 s. Cardio en intervalles 30 s / 30 s pour tenir le volume.",
+  kick: "Priorité au jour Rapide et aux hanches : lancers en rotation, sauts, Copenhague et mobilité de hanche pour la vitesse des coups de pied.",
+  clinch: "Force du haut du corps et du grip : tractions, rowing, marche du fermier, suspension à la serviette, nuque.",
+  wrestle: "Priorité au jour Lourd : force du bas du corps (soulevé, squat), puis sprints répétés et intervalles de 1 min au rythme de la lutte.",
+  grapple: "Grip, nuque et tronc : suspension à la serviette, isométrie de nuque, Pallof, Copenhague, et force du bas du corps.",
+};
 const ARCH = {
   volume: { label: "Striker de volume", suffix: "au volume de frappe", drills: ["Boxe", "Transitions MMA"], questions: ["Jab, direct, crochet, direct", "Double jab, direct"], weapons: ["lhookend", "checkhook", "liver"], techs: ["jab", "cross"], base: ["striking"], badges: ["boxe", "kick", "volume"] },
   kick: { label: "Kickeur technique", suffix: "qui travaille les jambes", drills: ["Kickboxing et muay thaï", "Boxe"], questions: ["Low kicks répétés", "Jab, direct, feinte de low"], weapons: ["highkick", "qmark", "switch"], techs: ["calf", "lowkick"], base: ["striking"], badges: ["kick", "thai", "karate"] },
@@ -37,6 +51,101 @@ export async function blend(names) {
     fins: Object.entries(fins).sort((x, y) => y[1] - x[1]).slice(0, 6),
     h: mean(fs.map((f) => f.h)), r: mean(fs.map((f) => f.r)), stances: [...new Set(fs.map((f) => f.st).filter(Boolean))],
   };
+}
+
+// programme de 6 semaines pour construire le style
+export function buildProgram(B, p) {
+  const A = ARCH[B.primary], S2 = B.secondary ? ARCH[B.secondary] : null;
+  const ideas = inspirations(B.b, B.a);
+  const q = (n) => QUESTIONS.findIndex((x) => x.name === n);
+  const qs = [...A.questions, ...(S2?.questions || [])].filter((n, i, a) => a.indexOf(n) === i && q(n) >= 0);
+  const ws = [...A.weapons, ...(S2?.weapons || [])].filter((n, i, a) => a.indexOf(n) === i);
+  const ts = [...A.techs, ...(S2?.techs || [])].filter((n, i, a) => a.indexOf(n) === i);
+  const sp = SPAR[B.primary];
+  const pick = (arr, i) => arr[Math.min(i, arr.length - 1)];
+  const pillar = (i) => ideas[i % Math.max(1, ideas.length)]?.text || "";
+  const weeks = [
+    { title: "Fondations", goal: `Poser les bases du style : ${A.label.toLowerCase()}.`, pillar: pillar(0), drills: A.drills[0], q: q(pick(qs, 0)), w: null, t: pick(ts, 0), spar: sp[0] },
+    { title: "Fondations", goal: "Répéter jusqu'à l'automatisme, sans résistance puis avec une résistance qui monte.", pillar: pillar(1), drills: A.drills[1] || A.drills[0], q: q(pick(qs, 1)), w: pick(ws, 0), t: pick(ts, 0), spar: sp[0] },
+    { title: "Construction", goal: "Ajouter l'arme décisive au bout de la combinaison : poser la question, lire la réponse, placer l'arme.", pillar: pillar(2), drills: A.drills[0], q: q(pick(qs, 0)), w: pick(ws, 0), t: pick(ts, 1), spar: sp[1] },
+    { title: "Construction", goal: "Construire ton système : ce que tu fais quand il répond, et ce que tu fais quand il contre.", pillar: pillar(3), drills: A.drills[1] || A.drills[0], q: q(pick(qs, 1)), w: pick(ws, 1), t: pick(ts, 1), spar: sp[1] },
+    { title: "Mise en situation", goal: "Tout mettre en sparring à thème, contre des partenaires de styles différents.", pillar: pillar(0), drills: A.drills[0], q: q(pick(qs, 2)), w: pick(ws, 1), t: pick(ts, 2), spar: sp[2] },
+    { title: "Bilan", goal: "Sparring libre, puis bilan avec ton coach : ce qui marche, ce qui reste à travailler. Mets tes fiches à jour.", pillar: "", drills: A.drills[0], q: q(pick(qs, 0)), w: pick(ws, 2), t: pick(ts, 2), spar: sp[2] },
+  ];
+  return weeks.map((w, i) => ({
+    ...w, n: i + 1,
+    tasks: [
+      `Drills solo « ${w.drills} », 3 fois 20 minutes`,
+      ...(w.q >= 0 ? [`Combinaison « ${QUESTIONS[w.q].name} » : 3 × 3 min au sac ou en shadow`] : []),
+      ...(w.w ? [`Arme « ${WNAME[w.w] || w.w} » : 50 répétitions sur pao, puis dans la combinaison`] : []),
+      `Système à construire ou compléter : ${TNAME[w.t] || w.t}`,
+      `Au sparring : ${w.spar}`,
+      i === 0 ? "Fiche technique : les points importants du style" : i === 5 ? "Fiche bilan : ce qui marche, ce qui reste" : "Mettre à jour ta fiche de la semaine",
+    ],
+  }));
+}
+const WNAME = { lhookend: "Crochet en fin de combinaison", checkhook: "Check hook", liver: "Crochet au foie", highkick: "High kick", qmark: "Point d'interrogation", switch: "Switch kick", kneeclinch: "Genou au clinch", elbow: "Coude", uppercut: "Uppercut", double: "Double-leg", guillotine: "Guillotine" };
+const TNAME = { jab: "Jab", cross: "Direct", calf: "Low kick au mollet", lowkick: "Low kick", clinch: "Entrée au clinch", bodylock: "Ceinture arrière", double: "Double-leg", single: "Single-leg", gnp: "Ground and pound", frontheadlock: "Front headlock", back: "Prise de dos", rnc: "Étranglement arrière" };
+
+export async function openProgram(style, onTrap, after, startWeek = null) {
+  const body = openSheet("Programme du style", `<p class="muted small">Préparation…</p>`);
+  let B; try { B = await blend(style.fighters); } catch { body.innerHTML = `<p class="notice is-warn small">Impossible de charger les données UFC. Vérifie ta connexion.</p>`; return; }
+  const p = store.get().profile || {};
+  const weeks = buildProgram(B, p);
+  const A = ARCH[B.primary];
+  const prog = store.get().program;
+  const active = prog?.styleId === style.id;
+  const cur = active ? Math.min(6, Math.max(1, Math.floor((new Date(todayKey() + "T12:00:00") - new Date(prog.start + "T12:00:00")) / (7 * 86400000)) + 1)) : null;
+  let open = startWeek || cur || 1;
+  const draw = () => {
+    const done = store.get().program?.styleId === style.id ? store.get().program.done || {} : {};
+    body.innerHTML = `
+      <div class="faces-row" style="margin-bottom:8px">${B.fs.map((f) => faceSlot(f.n)).join("")}</div>
+      <h3 class="display" style="font-size:24px">${esc(style.name)}</h3>
+      <p class="small muted">6 semaines pour construire ce style, en plus de tes cours au club. ${active ? `Programme en cours : semaine ${cur} sur 6.` : ""}</p>
+      <div class="panel small" style="padding:12px;margin-top:8px"><b>Prépa physique du style</b> · ${esc(SC_FOCUS[B.primary])}</div>
+      ${weeks.map((w) => { const n = w.tasks.filter((_, k) => done[`w${w.n}-${k}`]).length; return `<details class="sys-card" style="margin-top:8px" ${w.n === open ? "open" : ""}>
+        <summary><span><b>Semaine ${w.n} · ${esc(w.title)}</b>${cur === w.n ? ` <span class="insigne">en cours</span>` : ""}<span class="tiny muted" style="display:block">${n}/${w.tasks.length} fait</span></span></summary>
+        <p class="small" style="margin:8px 0">${esc(w.goal)}</p>
+        ${w.pillar ? `<p class="tiny muted" style="margin:0 0 8px">Pilier visé : ${esc(w.pillar.replace(/\bIl /g, "Le style ").replace(/ il /g, " le style "))}</p>` : ""}
+        <div class="stack" style="gap:6px">${w.tasks.map((t, k) => `<label class="row small" style="align-items:flex-start;gap:10px"><input type="checkbox" data-task="w${w.n}-${k}" ${done[`w${w.n}-${k}`] ? "checked" : ""} ${active ? "" : "disabled"} style="width:20px;height:20px;flex:none;margin-top:1px"><span>${esc(t)}</span></label>`).join("")}</div>
+        <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px">
+          ${w.q >= 0 ? `<button class="btn ghost small" data-q="${w.q}">La combinaison</button>` : ""}
+          ${w.w ? `<button class="btn ghost small" data-go="w|${w.w}">L'arme</button>` : ""}
+          <button class="btn ghost small" data-go="t|${w.t}">Le système</button>
+        </div>
+      </details>`; }).join("")}
+      <div class="stack" style="margin-top:16px">
+        ${active ? `<button class="btn ghost block" data-stop style="color:var(--bad)">Arrêter ce programme</button>` : `<button class="btn tape-btn block" data-start>Démarrer ce programme cette semaine</button>`}
+      </div>
+      <p class="hint">${active ? "Coche au fur et à mesure : ton coach voit ta progression." : "En démarrant, le programme s'affiche chaque jour sur ton écran d'accueil et ton coach suit ta progression."} Un seul programme de style actif à la fois.</p>`;
+    fillFaces(body);
+  };
+  body.addEventListener("change", (e) => {
+    const t = e.target.closest("[data-task]"); if (!t) return;
+    store.update((st) => { st.program = { ...st.program, done: { ...(st.program?.done || {}), [t.dataset.task]: t.checked } }; if (!t.checked) delete st.program.done[t.dataset.task]; });
+    open = Number(t.dataset.task.slice(1).split("-")[0]); draw(); after?.();
+  });
+  body.addEventListener("click", (e) => {
+    const g = e.target.closest("[data-go]"); if (g) { const [type, id] = g.dataset.go.split("|"); if (type === "w") openDiscussion({ w: id }, onTrap); if (type === "t") openExplorer(id, after); return; }
+    const q = e.target.closest("[data-q]"); if (q) { openDiscussion({ q: Number(q.dataset.q) }, onTrap); return; }
+    if (e.target.closest("[data-start]")) {
+      const monday = (() => { const d = new Date(todayKey() + "T12:00:00"); const di = (d.getDay() + 6) % 7; d.setDate(d.getDate() - di); return d.toISOString().slice(0, 10); })();
+      store.update((st) => { st.styles = [...(st.styles || []).filter((x) => x.id !== style.id), { id: style.id, name: style.name, fighters: style.fighters, createdAt: style.createdAt || todayKey() }]; st.program = { styleId: style.id, name: style.name, start: monday, done: {} }; });
+      toast("Programme démarré"); closeSheet(); after?.(); return;
+    }
+    const sp = e.target.closest("[data-stop]");
+    if (sp) { if (!sp.dataset.armed) { sp.dataset.armed = "1"; sp.textContent = "Confirmer l'arrêt"; return; } store.update((st) => { delete st.program; }); toast("Programme arrêté"); closeSheet(); after?.(); }
+  });
+  draw();
+}
+
+// semaine en cours du programme actif (pour l'accueil)
+export function programWeek(st = store.get()) {
+  const prog = st.program; if (!prog) return null;
+  const n = Math.floor((new Date(todayKey() + "T12:00:00") - new Date(prog.start + "T12:00:00")) / (7 * 86400000)) + 1;
+  if (n < 1 || n > 6) return { prog, n, over: n > 6 };
+  return { prog, n, title: ["Fondations", "Fondations", "Construction", "Construction", "Mise en situation", "Bilan"][n - 1], done: Object.keys(prog.done || {}).filter((k) => k.startsWith(`w${n}-`) && prog.done[k]).length };
 }
 
 export const styleName = (B) => `${ARCH[B.primary].label}${B.secondary ? `, ${ARCH[B.secondary].suffix}` : ""}`;
@@ -90,7 +199,7 @@ export async function openStyle(style, onTrap, after) {
     <div class="winbar"><i class="ko" style="flex:${B.ko}"></i><i class="sub" style="flex:${B.sub}"></i><i class="dec" style="flex:${B.dec}"></i></div>
     <div class="row small" style="gap:14px;margin-top:6px;flex-wrap:wrap"><span><span class="dot ko"></span> KO ${Math.round(B.ko / total * 100)} %</span><span><span class="dot sub"></span> Soumission ${Math.round(B.sub / total * 100)} %</span><span><span class="dot dec"></span> Décision ${Math.round(B.dec / total * 100)} %</span></div>
 
-    ${ideas.length ? `<h3 class="sys-h">Les piliers du style</h3><div class="stack" style="gap:8px">${ideas.map((i) => `<section class="panel" style="padding:12px"><p class="small" style="margin:0">${esc(i.text.replace(/^Il /, "Ce style ").replace(/ il /g, " ce style "))}</p>${i.act ? `<button class="link" data-go="${i.act[0]}|${i.act[1]}" style="margin-top:6px">${esc(i.cta)} →</button>` : ""}</section>`).join("")}</div>` : ""}
+    ${ideas.length ? `<h3 class="sys-h">Les piliers du style</h3><div class="stack" style="gap:8px">${ideas.map((i) => `<section class="panel" style="padding:12px"><p class="small" style="margin:0">${esc(i.text.replace(/\bIl /g, "Ce style ").replace(/ il /g, " ce style "))}</p>${i.act ? `<button class="link" data-go="${i.act[0]}|${i.act[1]}" style="margin-top:6px">${esc(i.cta)} →</button>` : ""}</section>`).join("")}</div>` : ""}
 
     <h3 class="sys-h">Pour toi</h3>
     <ul class="bul">${fit(B, p).map((x) => `<li class="small">${esc(x)}</li>`).join("")}</ul>
@@ -119,7 +228,8 @@ export async function openStyle(style, onTrap, after) {
     </div>
 
     <div class="stack" style="margin-top:16px">
-      <button class="btn tape-btn block" data-save>${saved ? "Enregistrer les changements" : "Garder ce style"}</button>
+      <button class="btn tape-btn block" data-program>Créer le programme de ce style (6 semaines)</button>
+      <button class="btn block" data-save>${saved ? "Enregistrer les changements" : "Garder ce style"}</button>
       <button class="btn ghost block" data-main>${p.styleName === s.name ? "Affiché sur mon profil" : "Afficher sur mon profil"}</button>
       <button class="btn ghost block" data-remix>Modifier le mélange</button>
       ${saved ? `<button class="btn ghost block" data-del style="color:var(--bad)">Supprimer ce style</button>` : ""}
@@ -132,6 +242,7 @@ export async function openStyle(style, onTrap, after) {
     if (g) { const [type, id] = g.dataset.go.split("|"); if (type === "w") openDiscussion({ w: id }, onTrap); if (type === "d") openDiscussion({ tab: id }, onTrap); if (type === "t") openExplorer(id, after); return; }
     const q = e.target.closest("[data-q]"); if (q) { openDiscussion({ q: Number(q.dataset.q) }, onTrap); return; }
     if (e.target.closest("[data-save]")) { save(); toast("Style enregistré"); closeSheet(); after?.(); return; }
+    if (e.target.closest("[data-program]")) { save(); openProgram(s, onTrap, after); return; }
     if (e.target.closest("[data-main]")) { save(); store.update((st) => { st.profile = { ...st.profile, styleName: s.name }; }); toast("Style affiché sur ton profil"); closeSheet(); after?.(); return; }
     if (e.target.closest("[data-remix]")) { openStyleLab(s, onTrap, after); return; }
     const d = e.target.closest("[data-del]");

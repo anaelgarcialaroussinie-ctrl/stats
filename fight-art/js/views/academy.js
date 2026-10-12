@@ -8,7 +8,7 @@ import { LUTA_INTRO, GLOSSARY, LESSON, GRADES, CYCLES } from "../luta-data.js";
 import { sync } from "../sync.js";
 import { openDiscussion } from "./discussion.js";
 import { openModel, openModelSearch, faceSlot, fillFaces } from "./models.js";
-import { openStyleLab, openStyle } from "./stylelab.js";
+import { openStyleLab, openStyle, programWeek, openProgram } from "./stylelab.js";
 import { openNote, openNoteRead, openNotesList, noteCard } from "./notes.js";
 
 const moveLabel = (id) => MOVES.find((m) => m.id === id)?.label || id;
@@ -70,7 +70,7 @@ export function renderAcademy(el, ctx) {
     <h2 class="h-sec">Labo de style</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Mélange plusieurs combattants, croise leurs chiffres avec ton gabarit et ton profil : l'appli en tire un style, ses piliers, ses armes et un plan pour le travailler. Crée-en autant que tu veux.</p>
-      ${(st.styles || []).length ? `<ul class="list">${st.styles.map((x) => `<li role="button" tabindex="0" data-style="${x.id}"><div style="min-width:0;flex:1"><div style="font-weight:700">${esc(x.name)}</div><div class="meta">${esc(x.fighters.join(" + "))}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : ""}
+      ${(st.styles || []).length ? `<ul class="list">${st.styles.map((x) => `<li role="button" tabindex="0" data-style="${x.id}"><div style="min-width:0;flex:1"><div style="font-weight:700">${esc(x.name)}${st.program?.styleId === x.id ? ` <span class="insigne">programme en cours</span>` : ""}</div><div class="meta">${esc(x.fighters.join(" + "))}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : ""}
       <button class="btn tape-btn block" data-lab style="margin-top:10px">${icon("plus")} Créer un style</button>
     </section>
 

@@ -2,6 +2,7 @@ import { store, todayKey, addDays, dayIndex } from "../store.js";
 import { DAYS } from "../data.js";
 import { openPlanning, loadThemes, cachedThemes, mondayOf } from "./planning.js";
 import { openNote } from "./notes.js";
+import { programWeek, openProgram } from "./stylelab.js";
 import { esc, icon, meter } from "../ui.js";
 import { dayPlan, readinessAdvice, alerts, nutritionTargets, dayTotals, frDate, isMinor } from "../engine.js";
 import { openCheckin, openBlock } from "./sessions.js";
@@ -71,6 +72,8 @@ export function renderToday(el, ctx, params = {}) {
       <button class="btn ghost small" data-act="reply">Voir et répondre</button></section>` : "";
 
   const clubCard = plan.blocks.find((b) => b.classes?.length);
+  const pw = isToday ? programWeek(st) : null;
+  const progCard = pw && !pw.over && pw.n >= 1 ? `<button class="panel row between" data-prog style="width:100%;text-align:left;margin-top:12px"><div><div class="tiny muted">Programme de style · semaine ${pw.n} sur 6</div><div style="font-weight:700">${esc(pw.prog.name)}</div><div class="muted small">${esc(pw.title)} · ${pw.done} tâche${pw.done > 1 ? "s" : ""} faite${pw.done > 1 ? "s" : ""} cette semaine</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>` : pw?.over ? `<p class="notice small" style="margin-top:12px">Programme « ${esc(pw.prog.name)} » terminé : fais le bilan avec ton coach et crée ton prochain style dans l'Academy.</p>` : "";
   el.innerHTML = `
     ${tape}
     ${strip}
@@ -79,6 +82,7 @@ export function renderToday(el, ctx, params = {}) {
     ${isToday ? alertsHtml : ""}
     ${isToday && advice ? `<div class="stack" style="margin-bottom:6px">${advice}</div>` : ""}
     ${compet}
+    ${progCard}
     ${clubCard ? `<section class="panel" style="margin-top:12px"><h3>Au club ${isToday ? "aujourd'hui" : esc(frDate(key, { weekday: "long" }))}</h3>${clubCard.classes.map((c) => { const t = cachedThemes(mondayOf(key))[c.id]; return `<div class="row between" style="margin-top:10px;align-items:flex-start"><div><b>${esc(c.name)}</b><div class="tiny muted">${esc(c.stage)}</div><div class="small" data-theme-for="${c.id}">${t ? `Thème : <b>${esc(t)}</b>` : ""}</div></div><span class="badge num" style="flex:none">${c.start.replace(":", "h")} – ${c.end.replace(":", "h")}</span></div>`; }).join("")}
       <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn ghost small" data-planning>Planning du club</button>${isFuture ? "" : `<button class="btn small" data-classnote>${icon("edit")} Ma fiche du cours</button>`}</div></section>` : ""}
     ${isToday ? `<button class="panel row between assist-cta" data-act="assistant" style="width:100%;text-align:left;margin-top:12px">
@@ -97,6 +101,7 @@ export function renderToday(el, ctx, params = {}) {
   el.querySelectorAll("[data-act=checkin]").forEach((b) => b.addEventListener("click", () => openCheckin(key, ctx.refresh)));
   el.querySelector("[data-act=assistant]")?.addEventListener("click", () => ctx.go("assistant"));
   el.querySelector("[data-planning]")?.addEventListener("click", () => openPlanning(key));
+  el.querySelector("[data-prog]")?.addEventListener("click", () => { const sty = (st.styles || []).find((x) => x.id === pw.prog.styleId) || { id: pw.prog.styleId, name: pw.prog.name, fighters: [] }; openProgram(sty, null, ctx.refresh, pw.n); });
   el.querySelector("[data-classnote]")?.addEventListener("click", () => {
     const th = cachedThemes(mondayOf(key)); const c = clubCard.classes.find((x) => th[x.id]) || clubCard.classes[0];
     openNote(null, ctx.refresh, { title: th[c.id] || "", source: c.name, date: key, cat: c.name.includes("Luta") ? "Luta Livre" : "Debout" });
