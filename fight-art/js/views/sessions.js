@@ -270,7 +270,8 @@ export function openStrength(key, block, after) {
   };
 
   const body = openSheet(`Prépa physique · ${S.title}`, `
-    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="badge tiny">${esc(S.focus)}</span><span class="badge tiny">Phase : ${esc(B.phase.label)}</span>${home ? `<span class="badge tiny">Version maison</span>` : ""}</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><span class="badge tiny">${esc(S.focus)}</span><span class="badge tiny">Phase : ${esc(B.phase.label)}</span></div>
+    ${isMinor(p) ? `<p class="tiny muted" style="margin:8px 0 0">Version poids du corps (moins de 18 ans).</p>` : `<div class="chips" style="margin-top:10px"><button type="button" class="chip" data-equip="gym" aria-pressed="${!home}">En salle</button><button type="button" class="chip" data-equip="home" aria-pressed="${home}">À la maison</button></div>`}
     <p class="muted small" style="margin-top:8px">${esc(S.why)}${block.mode === "light" ? " Forme moyenne aujourd'hui : séries réduites, charges −10 %." : ""}${p.level === 1 ? " Niveau Fondations : technique parfaite avant la charge, descente contrôlée, montée explosive." : ""}</p>
     ${B.phase.id !== "dev" ? `<p class="notice small">${esc(B.phase.text)}</p>` : ""}
     ${B.changes.length ? `<div class="notice is-warn small"><b>Séance adaptée${B.zones.length ? ` à ${esc(B.zones.map((z) => z.toLowerCase()).join(", "))}` : ""}${B.qual.priority ? `${B.zones.length ? " et" : ""} à ton profil` : ""}</b><ul class="bul" style="margin-top:6px">${B.changes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
@@ -284,6 +285,8 @@ export function openStrength(key, block, after) {
 
   body.addEventListener("input", (e) => { const id = e.target.dataset.kg; if (id) log[id].kg = e.target.value; });
   body.addEventListener("click", (e) => {
+    const eq = e.target.closest("[data-equip]");
+    if (eq) { if ((eq.dataset.equip === "home") !== home) { store.update((s2) => { s2.profile.equipment = eq.dataset.equip; }); closeSheet(); toast(eq.dataset.equip === "home" ? "Version maison" : "Version salle"); after?.(); openStrength(key, block, after); } return; }
     const s = e.target.closest("[data-set]");
     if (s) { const [id, k] = s.dataset.set.split(":"); log[id].sets[k] = !log[id].sets[k]; s.setAttribute("aria-pressed", log[id].sets[k]); }
     const r = e.target.closest("[data-rpe]");

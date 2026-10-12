@@ -183,6 +183,7 @@ function openProfile() {
   });
   body.querySelector("[data-models]").addEventListener("click", () => openModelSearch(null, () => {}));
   const f = body.querySelector("[data-prof]");
+  f.equipment.addEventListener("change", () => { p.equipment = f.equipment.value; store.update((s) => { s.profile = { ...s.profile, equipment: f.equipment.value }; }); toast(f.equipment.value === "home" ? "Prépa physique : version maison" : "Prépa physique : version salle"); });
   f.addEventListener("click", (e) => {
     const ij = e.target.closest("[data-inj]");
     if (ij) { const z = ij.dataset.inj; p.injuries = (p.injuries || []).includes(z) ? p.injuries.filter((x) => x !== z) : [...(p.injuries || []), z]; ij.setAttribute("aria-pressed", p.injuries.includes(z)); return; }
@@ -248,7 +249,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "30";
+const APP_VERSION = "31";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});
