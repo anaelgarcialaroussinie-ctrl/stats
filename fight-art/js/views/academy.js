@@ -6,6 +6,7 @@ import { frDate } from "../engine.js";
 import { openExplorer, editSystem, systemTree, drillSystem } from "./systems.js";
 import { LUTA_INTRO, GLOSSARY, LESSON, GRADES, CYCLES } from "../luta-data.js";
 import { sync } from "../sync.js";
+import { openDiscussion } from "./discussion.js";
 
 const moveLabel = (id) => MOVES.find((m) => m.id === id)?.label || id;
 const moveName = (id) => MOVES.find((m) => m.id === id)?.name || id;
@@ -37,6 +38,16 @@ export function renderAcademy(el, ctx) {
         <div class="row" style="gap:6px;flex:none"><button class="icon-btn" data-drill="${c.id}" aria-label="Driller ${esc(c.name)}">${icon("play")}</button><button class="icon-btn" data-edit="${c.id}" aria-label="Modifier">${icon("edit")}</button></div>
       </li>`).join("")}</ul>` : `<p class="muted small" style="margin:0 0 4px">Note les enchaînements qui marchent pour toi, puis drille-les au minuteur. Ton coach les voit aussi.</p>`}
       <button class="btn tape-btn block" data-newcombo style="margin-top:12px">${icon("plus")} Noter un combo</button>
+    </section>
+
+    <h2 class="h-sec">Le combat comme une discussion</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Une combinaison pose une question, sa réaction ouvre une faille, ton arme décisive vient l'exploiter. Backfist, retournés, genou sauté, check hook… : quand, pourquoi, ce que tu risques.</p>
+      <div class="grid3 disc-grid">
+        <button class="btn tape-btn small" data-disc="questions">Combinaisons</button>
+        <button class="btn ghost small" data-disc="reactions">Réactions</button>
+        <button class="btn ghost small" data-disc="weapons">Armes</button>
+      </div>
     </section>
 
     <h2 class="h-sec">Systèmes offensifs et défensifs</h2>
@@ -83,6 +94,7 @@ export function renderAcademy(el, ctx) {
   el.querySelector("[data-newsys]").addEventListener("click", () => editSystem(null, ctx.refresh, { root: "double", type: "off" }));
   el.querySelectorAll("[data-editsys]").forEach((b) => b.addEventListener("click", () => editSystem(systems.find((x) => x.id === b.dataset.editsys), ctx.refresh)));
   el.querySelectorAll("[data-drillsys]").forEach((b) => b.addEventListener("click", () => drillSystem(systems.find((x) => x.id === b.dataset.drillsys))));
+  el.querySelectorAll("[data-disc]").forEach((b) => b.addEventListener("click", () => openDiscussion({ tab: b.dataset.disc }, (preset) => editCombo(null, ctx.refresh, preset))));
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
   el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));
   drawLinks(el, ctx);
@@ -96,7 +108,7 @@ function drillCombo(c) {
 }
 
 function editCombo(existing, after, preset) {
-  const c = existing ? { ...existing, seq: [...existing.seq] } : { id: uid(), name: preset?.name || "", seq: preset?.seq ? [...preset.seq] : [], when: "", zone: preset?.zone || "Distance", createdAt: todayKey() };
+  const c = existing ? { ...existing, seq: [...existing.seq] } : { id: uid(), name: preset?.name || "", seq: preset?.seq ? [...preset.seq] : [], when: preset?.when || "", zone: preset?.zone || "Distance", createdAt: todayKey() };
   const body = openSheet(existing ? "Modifier le combo" : "Noter un combo", `
     <form data-combo class="stack">
       <label class="field"><span>Nom</span><input class="input" name="name" value="${esc(c.name)}" placeholder="Ex. Mon entrée en double-leg"></label>

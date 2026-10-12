@@ -80,6 +80,19 @@ export const MOVES = [
   { id: "trip", label: "Crochet", name: "Crochet de jambe" },
   { id: "sprawl", label: "Sprawl", name: "Sprawl" },
   { id: "underhook", label: "Underhook", name: "Underhook" },
+  { id: "liver", label: "Foie", name: "Crochet au foie" },
+  { id: "checkhook", label: "Check hook", name: "Crochet en pivot" },
+  { id: "bf", label: "Backfist", name: "Backfist avant" },
+  { id: "sbf", label: "Retourné", name: "Backfist retourné" },
+  { id: "sbe", label: "Coude ret.", name: "Coude retourné" },
+  { id: "superman", label: "Superman", name: "Superman punch" },
+  { id: "switch", label: "Switch", name: "Switch kick" },
+  { id: "qmark", label: "Point ?", name: "Coup de pied point d'interrogation" },
+  { id: "frontkick", label: "Front visage", name: "Front kick au visage" },
+  { id: "sbk", label: "Pied ret.", name: "Coup de pied retourné" },
+  { id: "wheel", label: "Wheel", name: "Coup de pied circulaire retourné" },
+  { id: "fknee", label: "Genou sauté", name: "Genou sauté" },
+  { id: "guillotine", label: "Guillotine", name: "Guillotine" },
 ];
 
 export const CLASSIC_COMBOS = [
