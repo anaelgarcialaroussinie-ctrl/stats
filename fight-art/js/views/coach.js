@@ -58,6 +58,7 @@ function draw(el, team, raw, live) {
 
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 14px">Équipe</h1>
+    ${live ? `<button class="panel row between" data-accounts style="width:100%;text-align:left;margin-bottom:12px"><div><div style="font-weight:700">Gérer les comptes</div><div class="muted small">Repérer et supprimer les comptes en double</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>` : ""}
     <button class="panel row between" data-progs style="width:100%;text-align:left;margin-bottom:12px"><div><div style="font-weight:700">Mes programmes</div><div class="muted small">Périodes, créneaux, thèmes de la semaine et vidéos</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</button>
     ${live ? "" : `<p class="notice is-warn">Aperçu avec des fighters d'exemple. Relie ton téléphone à l'équipe avec ton code coach pour voir tes vrais fighters.</p>`}
     ${live && !team.length ? `<section class="panel empty"><h3>Aucun fighter pour l'instant</h3><p class="small">Donne-leur le code d'équipe <b class="num">${esc(raw?.join_code || "")}</b> : ils le saisissent à l'ouverture de l'appli.</p><button class="btn tape-btn" data-copycode>Copier le code</button></section>` : ""}
@@ -83,6 +84,7 @@ function draw(el, team, raw, live) {
 
   el.querySelectorAll("[data-f]").forEach((r) => r.addEventListener("click", () => openFighter(team[r.dataset.f], live)));
   el.querySelector("[data-progs]")?.addEventListener("click", () => openPrograms());
+  el.querySelector("[data-accounts]")?.addEventListener("click", () => openAccounts(() => renderCoach(el)));
   el.querySelectorAll("[data-copycode]").forEach((b) => b.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(raw?.join_code || ""); toast("Code copié"); } catch { toast("Sélectionne le code pour le copier"); }
   }));
@@ -126,4 +128,32 @@ function openFighter(f, live) {
     try { await sync.send(f.id, text); closeSheet(); toast("Message envoyé"); }
     catch { toast("Envoi impossible : vérifie ta connexion"); }
   });
+}
+
+// ---------- gérer les comptes : doublons et suppression ----------
+function openAccounts(after) {
+  const body = openSheet("Gérer les comptes", `<p class="muted small">Chargement…</p>`);
+  const when = (d) => (d ? new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "jamais");
+  const draw = (list) => {
+    const count = {}; list.forEach((m) => { const k = m.name.trim().toLowerCase(); count[k] = (count[k] || 0) + 1; });
+    // dans chaque doublon, le compte ouvert le plus récemment est celui à garder
+    const latest = {}; list.forEach((m) => { const k = m.name.trim().toLowerCase(); if (!latest[k] || (m.last_seen || "") > (latest[k].last_seen || "")) latest[k] = m; });
+    const dups = list.filter((m) => count[m.name.trim().toLowerCase()] > 1);
+    body.innerHTML = `<p class="small muted" style="margin-top:0">${dups.length ? `Comptes en double en orange. Garde celui marqué « à garder » (le dernier utilisé) et supprime les autres.` : "Aucun compte en double."} Supprimer un compte efface aussi ses données, ses questions et ses messages : c'est définitif.</p>
+      <ul class="list">${list.map((m) => { const dup = count[m.name.trim().toLowerCase()] > 1, keep = latest[m.name.trim().toLowerCase()] === m;
+        return `<li${dup ? ' style="border-left:3px solid var(--warn);padding-left:10px"' : ""}><div style="min-width:0;flex:1"><div style="font-weight:700">${esc(m.name)}${m.me ? ` <span class="tiny muted">(toi)</span>` : ""}${dup && keep ? ` <span class="insigne">à garder</span>` : ""}</div>
+          <div class="meta">${m.role === "coach" ? "Coach" : "Fighter"} · créé ${esc(when(m.created_at))} · dernière ouverture ${esc(when(m.last_seen))} · ${m.checkins} check-in${m.checkins > 1 ? "s" : ""}</div></div>
+          ${m.me ? "" : `<button class="icon-btn" data-del="${m.id}" aria-label="Supprimer ${esc(m.name)}" style="color:var(--bad);flex:none">${icon("trash")}</button>`}</li>`; }).join("")}</ul>`;
+    body.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async () => {
+      const m = list.find((x) => x.id === b.dataset.del);
+      if (!confirm(`Supprimer définitivement le compte « ${m.name} » créé ${when(m.created_at)} ? Ses données seront effacées.`)) return;
+      b.disabled = true;
+      try { await sync.deleteMember(m.id); toast(`Compte « ${m.name} » supprimé`); load(); after?.(); }
+      catch { b.disabled = false; toast("Suppression impossible : vérifie ta connexion"); }
+    }));
+  };
+  const load = () => sync.members().then(draw).catch((e) => {
+    body.innerHTML = /function|not find|could not|does not exist|404/i.test(e.message || "") ? `<p class="notice is-warn small">La gestion des comptes arrive bientôt : la base du club doit encore être mise à jour.</p>` : `<p class="notice is-warn small">Impossible de charger les comptes. Vérifie ta connexion.</p>`;
+  });
+  load();
 }

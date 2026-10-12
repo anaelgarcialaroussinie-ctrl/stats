@@ -125,6 +125,10 @@ export const sync = {
   async pushSubscribe(sub) { return rpc("fap_push_subscribe", { p_token: token, p_sub: sub }); },
   async pushUnsubscribe(endpoint) { return rpc("fap_push_unsubscribe", { p_token: token, p_endpoint: endpoint }); },
 
+  // gestion des comptes de l'équipe (coach) : voir tous les comptes, supprimer un doublon
+  async members() { return rpc("fap_members", { p_token: token }); },
+  async deleteMember(id) { return rpc("fap_member_delete", { p_token: token, p_id: id }); },
+
   // programmes du coach (périodes, créneaux, thèmes, vidéos)
   async programs() { if (!token) return []; return rpc("fap_programs", { p_token: token }); },
   async saveProgram(p) { return rpc("fap_program_save", { p_token: token, p_prog: p }); },
