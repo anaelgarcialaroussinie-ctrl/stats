@@ -107,7 +107,7 @@ export function renderAcademy(el, ctx) {
     <h2 class="h-sec">Vidéothèque du club</h2>
     <section class="panel" style="margin-bottom:12px;border-left:4px solid var(--tape)">
       <b>Parcours Fight Art</b>
-      <p class="muted small" style="margin:4px 0 10px">Les vidéos techniques de Nicolas Renier, en français ou sous-titrées en français, de la ceinture blanche à la violette, avec les points importants de chacune.</p>
+      <p class="muted small" style="margin:4px 0 10px">Les meilleures vidéos gratuites des références (Renier, Danaher, Lachlan Giles, Gordon Ryan, Ryan Hall, John Smith), en français ou sous-titrées, de la ceinture blanche à la violette, avec les points importants.</p>
       <button class="btn tape-btn block" data-parcours>Ouvrir le parcours</button>
     </section>
     <section class="panel">
