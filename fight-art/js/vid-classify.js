@@ -124,6 +124,7 @@ export function beltOf(text, theme) {
 
 // expressions d'abord (les plus longues), puis mots seuls
 const PHRASES = [
+  ["bottom game", "jeu du dessous"], ["top game", "jeu du dessus"], ["guard game", "jeu de garde"], ["passing game", "jeu de passage"], ["master class", "masterclass"], ["advanced basics", "bases avancées"], ["from everywhere", "de partout"], ["low single", "low single"],
   ["mount escapes", "sorties de montée"], ["mount escape", "sortie de montée"], ["side control escapes", "sorties du contrôle latéral"], ["back escapes", "sorties du dos"], ["spider guard", "garde araignée (spider)"], ["lasso guard", "garde lasso"], ["x guard", "garde X"], ["single leg x", "single-leg X"], ["de la riva", "De La Riva"], ["k guard", "garde K"], ["z guard", "garde Z"], ["knee shield", "bouclier du genou"], ["guard pull", "tirage de garde"], ["front headlock", "contrôle de la tête (front headlock)"], ["for beginners", "pour débutants"],
   ["rear naked choke", "étranglement arrière"], ["arm triangle", "arm-triangle"], ["half guard", "demi-garde"], ["closed guard", "garde fermée"],
   ["open guard", "garde ouverte"], ["butterfly guard", "garde papillon"], ["side control", "contrôle latéral"], ["north south", "nord-sud"],

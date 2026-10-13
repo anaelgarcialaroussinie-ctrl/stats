@@ -12,6 +12,9 @@ export const localSupported = () => typeof window.showDirectoryPicker === "funct
 // on garde l'accès au dossier d'une fois sur l'autre (le navigateur redemande juste l'autorisation)
 const db = () => new Promise((ok, ko) => { const r = indexedDB.open("fap-local", 1); r.onupgradeneeded = () => r.result.createObjectStore("h"); r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error); });
 async function saveHandle(h) { const d = await db(); await new Promise((ok, ko) => { const t = d.transaction("h", "readwrite"); try { t.objectStore("h").put(h, "dir"); } catch (e) { ko(e); return; } t.oncomplete = ok; t.onerror = ok; }); }
+async function idbGet(k) { try { const d = await db(); return await new Promise((ok) => { const r = d.transaction("h").objectStore("h").get(k); r.onsuccess = () => ok(r.result); r.onerror = () => ok(undefined); }); } catch { return undefined; } }
+let putT = {};
+function idbPut(k, v) { clearTimeout(putT[k]); putT[k] = setTimeout(async () => { try { const d = await db(); d.transaction("h", "readwrite").objectStore("h").put(v, k); } catch {} }, 800); }
 async function loadHandle() { try { const d = await db(); return await new Promise((ok) => { const r = d.transaction("h").objectStore("h").get("dir"); r.onsuccess = () => ok(r.result || null); r.onerror = () => ok(null); }); } catch { return null; } }
 
 let files = [], root = null, fiches = {};
@@ -55,20 +58,156 @@ async function scan(dir, onProgress) {
   const nat = (a, b) => a.localeCompare(b, "fr", { numeric: true, sensitivity: "base" });
   return out.sort((a, b) => nat(a.folder, b.folder) || nat(a.name, b.name));
 }
-// catalogue synchronisé sur le compte du coach (lui seul) : titres + dossiers, pas les vidéos
+// ---- instructionals : on remonte au vrai dossier de l'instructional ----
+// les dossiers « conteneurs » (00-NEW-BJJ-2024, cd01, Pack - …, Collection…) et les sous-dossiers de chapitres sont sautés
+const CONTAINER = /^(0{2,}|0+[\s_-]|cd\s?\d+$|dis[ck]\s?\d*$|dvd\s?\d*$|pack\b|new[\s_-]|\d{4}$|videos?$|vids?$|bjj$|grappling$|lutte$|mma$|boxe$|boxing$|instructionals?$|seminars?$|seminaires?$|.*\b(full|complete|whole)\s+(collection|pack)\b|.*\bcollection\b|.*\bbundle\b)/i;
+export function instrOf(folder) {
+  if (!folder || folder === "(racine)") return { root: "(racine)", chapter: "" };
+  const parts = folder.split("/");
+  let i = 0;
+  while (i < parts.length - 1 && CONTAINER.test(parts[i].trim())) i++;
+  return { root: parts.slice(0, i + 1).join("/"), chapter: parts.slice(i + 1).join(" · ") };
+}
+const lastSeg = (root) => root.split("/").pop();
+const titleOf = (g) => (g.loose ? `Vidéos isolées · ${lastSeg(g.root)}` : translateTitle(lastSeg(g.root)));
+const dupKey = (root) => lastSeg(root).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\[[^\]]*\]|\([^)]*\)|1080p|720p|2160p|web|mp4/g, "").replace(/[^a-z0-9]/g, "");
+
+// classement d'un instructional (dossier conteneur compris : « 00LUTTE », « 000 - MMA »… donnent la discipline)
+function classifyGroup(g, over) {
+  const o = over[g.root] || {};
+  // le nom de l'instructional et de ses vidéos d'abord ; les dossiers parents (« 00LUTTE »…) seulement si ça ne suffit pas
+  const own = `${lastSeg(g.root)} ${lastSeg(g.root)} ${g.names.slice(0, 25).join(" ")}`;
+  const text = `${g.root} ${own}`;
+  let auto = classify(own); if (auto.id === "autre") auto = classify(text);
+  g.disc = DISCIPLINES.find((d) => d.id === (o.disc || g.cdisc)) || auto;
+  g.theme = themesOf(g.disc.id).find((t) => t.id === (o.theme || g.ctheme)) || themeOf(g.disc.id, text);
+  g.belt = BELT_DISCS.includes(g.disc.id) ? (BELTS.find((b) => b.id === (o.belt || g.cbelt)) || beltOf(text, g.theme.id)) : null;
+  g.fixed = Boolean(over[g.root]);
+  g.loose = g.root === "(racine)" || CONTAINER.test(lastSeg(g.root).trim()); // vidéos posées en vrac dans un dossier conteneur
+  return g;
+}
+function buildGroups(list) {
+  const map = new Map();
+  for (const f of list) {
+    const { root: r, chapter } = instrOf(f.folder);
+    f.chapter = chapter;
+    let g = map.get(r);
+    if (!g) map.set(r, (g = { root: r, items: [], names: [], count: 0 }));
+    g.items.push(f); g.count++;
+    if (g.names.length < 25) g.names.push(chapter ? `${chapter} ${f.name}` : f.name);
+  }
+  return [...map.values()];
+}
+
+// catalogue synchronisé sur le compte du coach (lui seul) : un instructional par ligne, déjà classé (léger)
+function catalogFromGroups(groups) {
+  const over = {};
+  return { v: 2, at: new Date().toISOString(), root: root?.name || "", items: groups.map((g) => { classifyGroup(g, over); return [g.root, g.count, g.disc.id, g.belt?.id || "", g.theme.id]; }) };
+}
 function saveCatalog() {
-  const folders = {};
-  files.forEach((f) => { (folders[f.folder] ||= []).push(f.name); });
-  store.update((s) => { s.localCatalog = { at: new Date().toISOString(), root: root?.name || "", folders }; if (Object.keys(fiches).length) s.localFiches = { ...(s.localFiches || {}), ...fiches }; });
+  const cat = catalogFromGroups(buildGroups(files));
+  store.update((s) => { s.localCatalog = cat; if (Object.keys(fiches).length) s.localFiches = { ...(s.localFiches || {}), ...fiches }; });
 }
-function fromCatalog() {
+// ancien format (tous les noms de fichiers, trop lourd) → nouveau format compact
+try {
   const c = store.get().localCatalog;
-  if (!c?.folders) return [];
-  return Object.entries(c.folders).flatMap(([folder, names]) => names.map((name) => ({ path: folder === "(racine)" ? name : `${folder}/${name}`, folder, name, handle: null })));
+  if (c && !c.v && c.folders) {
+    const list = Object.entries(c.folders).flatMap(([folder, names]) => names.map((name) => ({ folder, name })));
+    const cat = catalogFromGroups(buildGroups(list)); cat.root = c.root || "";
+    store.update((s) => { s.localCatalog = cat; });
+  }
+} catch { /* rien de grave : le catalogue sera refait au prochain passage sur l'ordinateur */ }
+function groupsFromCatalog() {
+  const c = store.get().localCatalog;
+  if (c?.v !== 2) return [];
+  return c.items.map(([r, n, d, b, t]) => ({ root: r, items: [], names: [], count: n, cdisc: d, cbelt: b, ctheme: t }));
 }
-// nom affiché d'un dossier : « Vol 1 » seul ne dit rien, on garde le nom de l'instructional au-dessus
 const folderName = (folder) => { const p = folder.split("/"); const last = p.pop(); return p.length && /^(vol|volume|part|partie|disc|disque|dvd|chapter|chapitre|\d)/i.test(last) ? `${p.pop()} · ${last}` : last; };
-const linkOf = (folder) => (store.get().localLinks || {})[folder] || "";
+const linkOf = (r) => (store.get().localLinks || {})[r] || "";
+
+// ---- envoi sur Google Drive : sélection + script (rclone) qui range tout par discipline / ceinture / catégorie ----
+const DRIVE_ROOT = "Fight Art Videotheque";
+const BUDGET = 1.8e12; // ~1,8 To utilisables sur un abonnement 2 To
+const safe = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>:"/\\|?*%!^&]/g, " ").replace(/\s+/g, " ").trim();
+export function drivePath(g) {
+  const di = DISCIPLINES.indexOf(g.disc) + 1;
+  const parts = [DRIVE_ROOT, `${String(di).padStart(2, "0")} ${safe(g.disc.label)}`];
+  if (g.belt) parts.push(`${BELTS.indexOf(g.belt) + 1} ${safe(g.belt.label)}`);
+  const ti = themesOf(g.disc.id).findIndex((t) => t.id === g.theme.id) + 1;
+  parts.push(`${String(ti).padStart(2, "0")} ${safe(g.theme.label)}`);
+  parts.push(safe(g.loose ? `Videos isolees - ${lastSeg(g.root)}` : lastSeg(g.root)).slice(0, 120));
+  return parts.join("/");
+}
+const driveSearch = (g) => `https://drive.google.com/drive/search?q=${encodeURIComponent(`"${safe(lastSeg(g.root)).slice(0, 120)}"`)}`;
+const driveSel = () => store.get().driveSel || {};
+// auteurs de référence : priorité dans la sélection automatique
+const TOP = /danaher|gordon ryan|lachlan|craig jones|musumeci|firas|zahabi|melanson|ryan hall|jason rau|bodoni|wiltse|demian maia|marcelo|bernardo faria|roger gracie|john smith|jordan burroughs|ben askren|cael|kolat|jimmy pedro|travis stevens|neil adams|renier|luta|aoj|mendes|galvao|tonon|vallimont|eli knight|chael/i;
+function autoScore(g, dupSeen) {
+  let s = 0;
+  const t = g.root.toLowerCase();
+  if (TOP.test(t)) s += 3;
+  if (g.belt?.id === "blanche" && /fundament|basics|foundation|essential|beginner|101|bases/i.test(t)) s += 2;
+  if (g.count >= 3 && g.count <= 60) s += 1;
+  if (g.okRatio !== undefined) s += g.okRatio; // vidéos lisibles : un petit plus
+  if (dupSeen.has(dupKey(g.root))) s -= 10; // doublon d'un instructional déjà choisi
+  return s;
+}
+function autoPick(groups) {
+  const pick = {}, dupSeen = new Set();
+  const per = { luta: 3, jjb: 2, grappling: 2, lutte: 3, mma: 3, judo: 2, boxe: 2, pieds: 2, prepa: 1, autre: 0 };
+  const buckets = new Map();
+  for (const g of groups) { const k = `${g.disc.id}|${g.belt?.id || ""}|${g.theme.id}`; if (!buckets.has(k)) buckets.set(k, []); buckets.get(k).push(g); }
+  for (const [k, list] of buckets) {
+    const disc = k.split("|")[0];
+    let n = per[disc] ?? 1;
+    if (k.endsWith("|autres")) n = Math.min(n, 1);
+    const ranked = list.map((g) => ({ g, s: autoScore(g, dupSeen) })).sort((a, b) => b.s - a.s);
+    for (const { g, s } of ranked.slice(0, n)) { if (s < -5) continue; pick[g.root] = 1; dupSeen.add(dupKey(g.root)); }
+  }
+  return pick;
+}
+const fmtSize = (b) => (b >= 1e12 ? `${(b / 1e12).toFixed(2).replace(".", ",")} To` : b >= 1e9 ? `${Math.round(b / 1e9)} Go` : `${Math.round(b / 1e6)} Mo`);
+let sizeCache = {}; // taille par instructional (octets)
+async function groupSize(g) {
+  if (sizeCache[g.root] !== undefined) return sizeCache[g.root];
+  let tot = 0;
+  for (const f of g.items) { try { tot += (await f.handle.getFile()).size; } catch {} }
+  sizeCache[g.root] = tot; idbPut("sizes", sizeCache);
+  return tot;
+}
+function driveScript(groups) {
+  const L = [
+    "@echo off", "chcp 65001 >nul", "title Fight Art - envoi vers Google Drive", "cd /d \"%~dp0\"",
+    "echo ============================================================",
+    "echo  Envoi de ta selection vers TON Google Drive (prive)",
+    "echo  Range par discipline, ceinture et categorie.",
+    "echo  Tu peux fermer et relancer : il reprend ou il s'est arrete.",
+    "echo ============================================================", "echo.",
+    "where rclone >nul 2>nul", "if errorlevel 1 (",
+    "  echo Installation de l'outil d'envoi rclone, une seule fois...",
+    "  winget install -e --id Rclone.Rclone --accept-source-agreements --accept-package-agreements",
+    "  echo.", "  echo C'est installe. Ferme cette fenetre puis relance ce fichier.", "  pause", "  exit /b", ")",
+    "rclone listremotes | findstr /b /c:\"fightart:\" >nul", "if errorlevel 1 (",
+    "  echo Une page Google va s'ouvrir : connecte-toi avec le compte du Drive et accepte.",
+    "  rclone config create fightart drive scope=drive",
+    ")",
+    "set \"SRC=%~dp0\"", "set N=0",
+  ];
+  groups.forEach((g, i) => {
+    const src = (g.root === "(racine)" ? "" : g.root.replace(/\//g, "\\")).replace(/%/g, "%%");
+    const dst = drivePath(g).replace(/%/g, "%%");
+    L.push(`echo [${i + 1}/${groups.length}] ${safe(lastSeg(g.root)).slice(0, 70)}`);
+    L.push(`rclone copy "%SRC%${src}" "fightart:${dst}" --transfers 3 --checkers 8 --drive-stop-on-upload-limit --stats-one-line -P${g.loose ? " --max-depth 1" : ""}`);
+    L.push("if errorlevel 7 goto limite");
+  });
+  L.push("echo.", "echo Termine ! Tout est sur ton Google Drive, dossier \"" + DRIVE_ROOT + "\".", "pause", "exit /b",
+    ":limite", "echo.", "echo Google limite l'envoi a 750 Go par jour : relance ce fichier demain, il reprendra ou il s'est arrete.", "pause", "exit /b", "");
+  return L.join("\r\n");
+}
+function download(name, text, type = "application/octet-stream") {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
+}
+
 // convertisseur Windows : transforme les vidéos illisibles en MP4 (H.264) lisibles partout, à côté des originaux
 const BAT = [
   "@echo off", "chcp 65001 >nul", "title Fight Art - videos lisibles",
@@ -108,10 +247,10 @@ const convHelp = `<b>Rendre les vidéos lisibles</b> : télécharge le convertis
 const pretty = (n) => n.replace(VIDEO, "").replace(/\s*\(lisible\)\s*$/i, "").replace(/[_]+/g, " ").replace(/\s+/g, " ").trim();
 
 // test réel de lisibilité : le navigateur doit décoder la première image (pas juste reconnaître le fichier)
-const OK_KEY = "fap:playable";
+// (gardé dans la base locale du navigateur : trop gros pour le stockage simple)
 let okCache = {};
-try { okCache = JSON.parse(localStorage.getItem(OK_KEY) || "{}"); } catch {}
-const saveOk = () => { try { localStorage.setItem(OK_KEY, JSON.stringify(okCache)); } catch {} };
+const saveOk = () => idbPut("ok", okCache);
+const cacheReady = (async () => { okCache = (await idbGet("ok")) || {}; sizeCache = (await idbGet("sizes")) || {}; try { localStorage.removeItem("fap:playable"); } catch {} })();
 const MIME0 = { mp4: "video/mp4", m4v: "video/mp4", mov: "video/mp4", webm: "video/webm", mkv: "video/webm" };
 function probe(f) {
   return new Promise(async (res) => {
@@ -131,16 +270,19 @@ function probe(f) {
 let testing = false;
 async function testAll(onStep) {
   if (testing) return; testing = true;
-  const todo = files.filter((f) => f.handle && okCache[f.path] === undefined);
+  // une vidéo testée par dossier (les vidéos d'un même dossier ont le même format) : bien plus rapide
+  await cacheReady;
+  const seen = new Set(), todo = [];
+  for (const f of files) { if (!f.handle || okCache[f.path] !== undefined || okCache[`dir:${f.folder}`] !== undefined || seen.has(f.folder)) continue; seen.add(f.folder); todo.push(f); }
   let n = 0, i = 0;
   const worker = async () => {
     while (i < todo.length) {
       const f = todo[i++]; const r = await probe(f);
-      if (r !== null) okCache[f.path] = r;
+      if (r !== null) { okCache[f.path] = r; okCache[`dir:${f.folder}`] = r; }
       n++; if (n % 20 === 0) { saveOk(); onStep?.(n, todo.length, false); }
     }
   };
-  await Promise.all([worker(), worker(), worker()]);
+  await Promise.all([worker(), worker(), worker(), worker()]);
   saveOk(); testing = false; onStep?.(n, todo.length, true);
 }
 
@@ -148,40 +290,37 @@ export function openLocalVideos() {
   const body = openSheet("Ma vidéothèque privée", "");
   let q = "", disc = "", onlyOk = true, theme = "", belt = "";
   const phone = !localSupported();
-  const intro = phone ? `<p class="small muted" style="margin-top:0">Sur téléphone : ton catalogue, tes fiches et tes notes. Pour regarder, ajoute à chaque instructional le lien privé de son dossier sur ton Google Drive ou OneDrive (partage « restreint », toi seul). Les liens restent sur ton compte coach, personne d'autre ne les voit.</p>` : `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par discipline et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : sa fiche de travail (si elle est prête sur le disque) et tes notes.</p>`;
+  const intro = phone ? `<p class="small muted" style="margin-top:0">Sur téléphone : ton catalogue, tes fiches et tes notes. Les instructionals envoyés sur ton Google Drive (★) s'ouvrent avec « Regarder sur Drive ». Tout reste privé : personne d'autre ne voit ces liens.</p>` : `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par discipline et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : sa fiche de travail (si elle est prête sur le disque) et tes notes.</p>`;
 
+  const okFor = (f) => okCache[f.path] ?? okCache[`dir:${f.folder}`];
+  let view = "all"; // all | drive
   const draw = () => {
-    if (!localSupported()) {
-      if (!files.length) { files = fromCatalog(); fiches = { ...(store.get().localFiches || {}) }; }
-      if (!files.length) { body.innerHTML = intro + `<p class="notice is-warn small">Ouvre d'abord la vidéothèque une fois sur ton ordinateur (Chrome ou Edge, disque branché) : le catalogue arrive ensuite ici automatiquement.</p>`; return; }
-    }
-    if (!files.length) { body.innerHTML = intro + `<button class="btn tape-btn block" data-pick>${icon("play")} Choisir le dossier des vidéos sur mon disque dur</button><p class="hint">Le navigateur te demande quel dossier ouvrir et l'autorisation de le lire. Les fichiers ne quittent pas ton ordinateur.</p>`; return; }
+    let groups;
+    if (phone) {
+      groups = groupsFromCatalog();
+      fiches = { ...(store.get().localFiches || {}) };
+      if (!groups.length) { body.innerHTML = intro + `<p class="notice is-warn small">Ouvre d'abord la vidéothèque une fois sur ton ordinateur (Chrome ou Edge, disque branché) : le catalogue arrive ensuite ici automatiquement.</p>`; return; }
+    } else if (!files.length) { body.innerHTML = intro + `<button class="btn tape-btn block" data-pick>${icon("play")} Choisir le dossier des vidéos sur mon disque dur</button><p class="hint">Le navigateur te demande quel dossier ouvrir et l'autorisation de le lire. Les fichiers ne quittent pas ton ordinateur.</p>`; return; }
     const notes = studyNotes();
-    const tested = phone ? files : files.filter((f) => okCache[f.path] !== undefined);
-    const okFiles = phone ? files : files.filter((f) => okCache[f.path] === 1);
-    const pending = files.length - tested.length;
-    const base = phone || !onlyOk ? files : okFiles;
-    const list = q ? base.filter((f) => f.path.toLowerCase().includes(q)) : base;
-    const groups = [];
-    list.forEach((f) => { let g = groups.find((x) => x.folder === f.folder); if (!g) groups.push(g = { folder: f.folder, items: [] }); g.items.push(f); });
-    // chaque instructional reçoit sa discipline (nom du dossier + noms des vidéos)
+    const sel = driveSel();
+    let tested = 0, okN = 0;
+    if (!phone) { for (const f of files) { const o = okFor(f); if (o !== undefined) { tested++; if (o === 1) okN++; } } }
+    const pending = phone ? 0 : files.length - tested;
+    if (!phone) {
+      const base = onlyOk ? files.filter((f) => okFor(f) === 1) : files;
+      groups = buildGroups(base);
+    }
     const over = store.get().localClass || {};
-    groups.forEach((g) => {
-      const text = `${g.folder} ${g.folder} ${g.items.slice(0, 30).map((i) => i.name).join(" ")}`;
-      const o = over[g.folder] || {};
-      g.disc = DISCIPLINES.find((d) => d.id === o.disc) || classify(text);
-      g.theme = themesOf(g.disc.id).find((t) => t.id === o.theme) || themeOf(g.disc.id, text);
-      g.belt = BELT_DISCS.includes(g.disc.id) ? (BELTS.find((b) => b.id === o.belt) || beltOf(text, g.theme.id)) : null;
-      g.fixed = Boolean(over[g.folder]);
-    });
+    groups.forEach((g) => classifyGroup(g, over));
+    if (q) groups = groups.filter((g) => g.root.toLowerCase().includes(q) || translateTitle(lastSeg(g.root)).toLowerCase().includes(q) || g.items.some((i) => i.name.toLowerCase().includes(q)));
+    if (view === "drive") groups = groups.filter((g) => sel[g.root]);
     const counts = {}; groups.forEach((g) => { counts[g.disc.id] = (counts[g.disc.id] || 0) + 1; });
     const inDisc = disc ? groups.filter((g) => g.disc.id === disc) : groups;
     const shown = inDisc.filter((g) => (!theme || g.theme.id === theme) && (!belt || g.belt?.id === belt));
     // ordre : discipline → ceinture (blanche à noire) → catégorie dans l'ordre d'apprentissage → titre
     const nat = (a, b) => a.localeCompare(b, "fr", { numeric: true, sensitivity: "base" });
     const rank = (g) => [DISCIPLINES.indexOf(g.disc), g.belt ? BELTS.indexOf(g.belt) : 0, themesOf(g.disc.id).findIndex((t) => t.id === g.theme.id)];
-    const ordered = [...shown].sort((a, b) => { const ra = rank(a), rb = rank(b); return ra[0] - rb[0] || ra[1] - rb[1] || ra[2] - rb[2] || nat(a.folder, b.folder); });
-    const dObj = DISCIPLINES.find((d) => d.id === disc);
+    const ordered = [...shown].sort((a, b) => { const ra = rank(a), rb = rank(b); return ra[0] - rb[0] || ra[1] - rb[1] || ra[2] - rb[2] || nat(lastSeg(a.root), lastSeg(b.root)); });
     const subChips = !disc ? "" : `${BELT_DISCS.includes(disc) ? `<div class="chips" style="margin-bottom:6px"><button class="chip" data-vbelt="" aria-pressed="${!belt}">Toutes ceintures</button>${BELTS.filter((b) => inDisc.some((g) => g.belt?.id === b.id)).map((b) => `<button class="chip" data-vbelt="${b.id}" aria-pressed="${belt === b.id}"><span style="display:inline-block;width:14px;height:6px;border-radius:2px;background:${b.color};border:1px solid #555;margin-right:6px"></span>${esc(b.label.replace("Ceinture ", ""))} · ${inDisc.filter((g) => g.belt?.id === b.id).length}</button>`).join("")}</div>` : ""}
       <div class="chips" style="margin-bottom:8px"><button class="chip" data-vtheme="" aria-pressed="${!theme}">Toutes catégories</button>${themesOf(disc).filter((t) => inDisc.some((g) => g.theme.id === t.id)).map((t) => `<button class="chip" data-vtheme="${t.id}" aria-pressed="${theme === t.id}">${esc(t.label)} · ${inDisc.filter((g) => g.theme.id === t.id).length}</button>`).join("")}</div>`;
     const head = (g, gi) => {
@@ -194,27 +333,76 @@ export function openLocalVideos() {
     };
     const classer = (g) => `<details style="margin:6px 0"><summary class="tiny muted" style="cursor:pointer">Classer autrement${g.fixed ? " (classé à la main)" : ""}</summary>
       <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">
-        <select class="input" data-cls="disc" data-folder="${esc(g.folder)}" style="flex:1;min-width:140px">${DISCIPLINES.map((d) => `<option value="${d.id}"${d === g.disc ? " selected" : ""}>${esc(d.label)}</option>`).join("")}</select>
-        ${g.belt ? `<select class="input" data-cls="belt" data-folder="${esc(g.folder)}" style="flex:1;min-width:140px">${BELTS.map((b) => `<option value="${b.id}"${b === g.belt ? " selected" : ""}>${esc(b.label)}</option>`).join("")}</select>` : ""}
-        <select class="input" data-cls="theme" data-folder="${esc(g.folder)}" style="flex:1;min-width:160px">${themesOf(g.disc.id).map((t) => `<option value="${t.id}"${t.id === g.theme.id ? " selected" : ""}>${esc(t.label)}</option>`).join("")}</select>
-        ${g.fixed ? `<button class="btn ghost small" data-clsreset="${esc(g.folder)}">Classement auto</button>` : ""}
+        <select class="input" data-cls="disc" data-folder="${esc(g.root)}" style="flex:1;min-width:140px">${DISCIPLINES.map((d) => `<option value="${d.id}"${d === g.disc ? " selected" : ""}>${esc(d.label)}</option>`).join("")}</select>
+        ${g.belt ? `<select class="input" data-cls="belt" data-folder="${esc(g.root)}" style="flex:1;min-width:140px">${BELTS.map((b) => `<option value="${b.id}"${b === g.belt ? " selected" : ""}>${esc(b.label)}</option>`).join("")}</select>` : ""}
+        <select class="input" data-cls="theme" data-folder="${esc(g.root)}" style="flex:1;min-width:160px">${themesOf(g.disc.id).map((t) => `<option value="${t.id}"${t.id === g.theme.id ? " selected" : ""}>${esc(t.label)}</option>`).join("")}</select>
+        ${g.fixed ? `<button class="btn ghost small" data-clsreset="${esc(g.root)}">Classement auto</button>` : ""}
       </div></details>`;
+    const watch = (g) => {
+      const l = linkOf(g.root) || (sel[g.root] ? driveSearch(g) : "");
+      return `<div class="row" style="gap:8px;margin:6px 0;flex-wrap:wrap">${l ? `<a class="btn tape-btn small" href="${esc(l)}" target="_blank" rel="noopener">${icon("play")} Regarder sur Drive</a>` : ""}<button class="btn ghost small" data-flink="${esc(g.root)}">${linkOf(g.root) ? "Modifier le lien" : "Lien privé (Drive, Plex…)"}</button></div>`;
+    };
+    const selN = Object.keys(sel).length;
+    const allGroupsN = phone ? groups.length : buildGroups(files).length;
+    const MAX = 250;
     body.innerHTML = intro + `
       <div class="row" style="gap:8px;margin-bottom:10px"><input class="input" data-q placeholder="Rechercher (technique, auteur…)" value="${esc(q)}" style="flex:1">${phone ? "" : `<button class="btn ghost small" data-pick>Changer de dossier</button>`}</div>
-      <div class="chips" style="margin-bottom:8px"><button class="chip" data-vdisc="" aria-pressed="${!disc}">Tout · ${groups.length}</button>${DISCIPLINES.filter((d) => counts[d.id]).map((d) => `<button class="chip" data-vdisc="${d.id}" aria-pressed="${disc === d.id}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${d.color};margin-right:6px"></span>${esc(d.label)} · ${counts[d.id]}</button>`).join("")}</div>
+      <div class="chips" style="margin-bottom:8px"><button class="chip" data-view="all" aria-pressed="${view === "all"}">Toute la vidéothèque · ${allGroupsN}</button><button class="chip" data-view="drive" aria-pressed="${view === "drive"}">★ Ma sélection Drive · ${selN}</button></div>
+      ${phone ? "" : drivePanel(selN)}
+      <div class="chips" style="margin-bottom:8px"><button class="chip" data-vdisc="" aria-pressed="${!disc}">Tout · ${groups.length}</button>${DISCIPLINES.filter((d) => counts[d.id]).map((d) => `<button class="chip" data-vdisc="${d.id}" aria-pressed="${disc === d.id}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${d.color};border:1px solid #555;margin-right:6px"></span>${esc(d.label)} · ${counts[d.id]}</button>`).join("")}</div>
       ${subChips}
-      ${phone ? "" : `<div class="panel" style="padding:10px 12px;margin-bottom:8px"><p class="small" style="margin:0"><b style="color:var(--tape)">${okFiles.length} vidéo${okFiles.length > 1 ? "s" : ""} lisible${okFiles.length > 1 ? "s" : ""}</b> sur ${files.length}${pending ? ` · <span data-okprog>test en cours : ${tested.length}/${files.length}</span>` : ` · ${files.length - okFiles.length} illisibles dans le navigateur`}</p>
-        <div class="chips" style="margin-top:8px"><button class="chip" data-onlyok="1" aria-pressed="${onlyOk}">Seulement les lisibles</button><button class="chip" data-onlyok="0" aria-pressed="${!onlyOk}">Tout afficher</button></div></div>`}
-      <p class="tiny muted">${list.length} affichée${list.length > 1 ? "s" : ""} · ${files.length} vidéos dans ${new Set(files.map((f) => f.folder)).size} dossiers${root ? ` · dossier « ${esc(root.name)} »` : ""} · ${(() => { const n = files.filter((f) => fiches[f.path]).length; return n + (n > 1 ? " fiches prêtes" : " fiche prête"); })()} · titres traduits automatiquement</p>
+      ${phone ? "" : `<div class="row between" style="gap:8px;margin-bottom:6px;flex-wrap:wrap"><p class="tiny muted" style="margin:0"><b style="color:var(--tape)">${okN} lisibles sur PC</b> / ${files.length} vidéos${pending ? ` · <span data-okprog>test en cours…</span>` : ""}</p><div class="chips"><button class="chip" data-onlyok="1" aria-pressed="${onlyOk}">Lisibles sur PC</button><button class="chip" data-onlyok="0" aria-pressed="${!onlyOk}">Tout</button></div></div>`}
+      <p class="tiny muted">${shown.length} instructional${shown.length > 1 ? "s" : ""}${shown.length > MAX ? ` (les ${MAX} premiers affichés : choisis une discipline, une ceinture ou cherche)` : ""} · titres traduits automatiquement</p>
       ${!ordered.length && !phone && onlyOk && pending ? `<p class="muted small">Test de lisibilité en cours… les vidéos lisibles apparaissent ici au fur et à mesure.</p>` : ""}
-      ${ordered.slice(0, 400).map((g, gi) => `${head(g, gi)}<details class="sys-card" style="border-left:4px solid ${g.belt ? g.belt.color : g.disc.color}"${q ? " open" : ""}><summary><b>${esc(translateTitle(folderName(g.folder)))}</b><span class="tiny muted" style="display:block">${esc(folderName(g.folder))} · ${g.items.length} vidéo${g.items.length > 1 ? "s" : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></summary>
+      ${ordered.slice(0, MAX).map((g, gi) => `${head(g, gi)}<details class="sys-card" data-g="${esc(g.root)}" style="border-left:4px solid ${g.belt ? g.belt.color : g.disc.color}"${q && ordered.length < 6 ? " open" : ""}><summary><span class="row between" style="gap:8px;align-items:flex-start"><span style="min-width:0"><b>${esc(titleOf(g))}</b><span class="tiny muted" style="display:block">${esc(lastSeg(g.root))} · ${g.count} vidéo${g.count > 1 ? "s" : ""}${sizeCache[g.root] ? ` · ${fmtSize(sizeCache[g.root])}` : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></span><button class="icon-btn" data-dsel="${esc(g.root)}" title="Sélection Drive" aria-pressed="${Boolean(sel[g.root])}" style="flex:none;font-size:18px;color:${sel[g.root] ? "var(--tape)" : "var(--muted)"}">${sel[g.root] ? "★" : "☆"}</button></span></summary>
+        ${watch(g)}
         ${classer(g)}
-        <div class="row" style="gap:8px;margin:6px 0;flex-wrap:wrap">${linkOf(g.folder) ? `<a class="btn tape-btn small" href="${esc(linkOf(g.folder))}" target="_blank" rel="noopener">${icon("play")} Regarder</a>` : ""}<button class="btn ghost small" data-flink="${esc(g.folder)}">${linkOf(g.folder) ? "Modifier le lien" : "Ajouter le lien privé (Plex, Drive…)"}</button></div>
-        ${fiches[`${g.folder}/__systeme__`] ? `<details style="margin:6px 0"><summary class="small" style="font-weight:700;cursor:pointer;color:var(--tape)">Fiche système de l'instructional</summary>${ficheHtml(fiches[`${g.folder}/__systeme__`])}</details>` : ""}
-        ${g.items.map((i) => `<button class="row between" data-play="${esc(i.path)}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:inherit;padding:10px 0;gap:8px"><span style="min-width:0"><span class="small"${!phone && okCache[i.path] === 0 ? ' style="opacity:.55"' : ""}>${!phone && okCache[i.path] === 0 ? '<span class="tiny" style="color:#F25F5C">illisible · </span>' : ""}${esc(translateTitle(pretty(i.name)))}${fiches[i.path] ? ` <span class="insigne">fiche</span>` : ""}${notes[`local:${i.path}`] ? ` <span class="tiny" style="color:var(--tape)">✎</span>` : ""}</span><span class="tiny muted" style="display:block">${esc(pretty(i.name))}</span></span>${icon("play", 'style="width:18px;height:18px;flex:none"')}</button>`).join("")}
+        ${fiches[`${g.root}/__systeme__`] ? `<details style="margin:6px 0"><summary class="small" style="font-weight:700;cursor:pointer;color:var(--tape)">Fiche système de l'instructional</summary>${ficheHtml(fiches[`${g.root}/__systeme__`])}</details>` : ""}
+        ${g.items.length ? `<div data-items></div>` : `<p class="tiny muted">${g.count} vidéos : ouvre-les avec « Regarder sur Drive ».</p>`}
       </details>`).join("")}
-      ${phone ? "" : `<section class="panel" style="margin-top:14px;padding:12px"><p class="small" style="margin:0 0 8px">${convHelp}</p><button class="btn tape-btn block" data-conv>Télécharger le convertisseur (Windows)</button></section>`}
       <button class="btn ghost block" data-export style="margin-top:14px">Exporter le catalogue (pour préparer les fiches avec Claude)</button>`;
+    // les listes de vidéos ne sont construites qu'à l'ouverture d'un instructional (des milliers de vidéos)
+    lastGroups = ordered;
+  };
+  let lastGroups = [];
+  const itemsHtml = (g) => {
+    const notes = studyNotes();
+    let prevCh = null;
+    return g.items.map((i) => {
+      const ch = i.chapter && i.chapter !== prevCh ? `<div class="tiny" style="margin:10px 0 2px;font-weight:700;color:var(--muted)">${esc(translateTitle(i.chapter))}</div>` : "";
+      prevCh = i.chapter;
+      const bad = okFor(i) === 0;
+      return `${ch}<button class="row between" data-play="${esc(i.path)}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:inherit;padding:10px 0;gap:8px"><span style="min-width:0"><span class="small"${bad ? ' style="opacity:.55"' : ""}>${bad ? '<span class="tiny" style="color:#F25F5C">illisible sur PC · </span>' : ""}${esc(translateTitle(pretty(i.name)))}${fiches[i.path] ? ` <span class="insigne">fiche</span>` : ""}${notes[`local:${i.path}`] ? ` <span class="tiny" style="color:var(--tape)">✎</span>` : ""}</span><span class="tiny muted" style="display:block">${esc(pretty(i.name))}</span></span>${icon("play", 'style="width:18px;height:18px;flex:none"')}</button>`;
+    }).join("");
+  };
+  body.addEventListener("toggle", (e) => {
+    const d = e.target;
+    if (!d.matches?.("details[data-g]") || !d.open) return;
+    const box = d.querySelector("[data-items]");
+    if (!box || box.childElementCount) return;
+    const g = lastGroups.find((x) => x.root === d.dataset.g);
+    if (g) box.innerHTML = itemsHtml(g);
+  }, true);
+  const drivePanel = (selN) => {
+    const sel = driveSel();
+    const known = Object.keys(sel).filter((r) => sizeCache[r] !== undefined);
+    const tot = known.reduce((a, r) => a + sizeCache[r], 0);
+    return `<section class="panel" style="padding:12px;margin-bottom:10px">
+      <b class="small">Envoyer sur Google Drive</b>
+      <p class="tiny muted" style="margin:4px 0 8px">Choisis les instructionals avec l'étoile ☆, ou laisse l'appli proposer une sélection équilibrée (par discipline, ceinture et catégorie, sans doublons, auteurs de référence en priorité). Ensuite, un seul fichier envoie tout sur ton Drive, déjà rangé.</p>
+      <p class="small" style="margin:0 0 8px"><b>${selN}</b> instructional${selN > 1 ? "s" : ""} sélectionné${selN > 1 ? "s" : ""}${selN ? ` · ${known.length < selN ? `taille connue pour ${known.length}/${selN} : ` : ""}<b>${fmtSize(tot)}</b> / 2 To` : ""}${tot > BUDGET ? ` <span style="color:#F25F5C">· trop gros : enlève des instructionals</span>` : ""}</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn tape-btn small" data-dauto>Proposer une sélection</button>
+        ${selN ? `<button class="btn ghost small" data-dsize>Calculer la taille</button><button class="btn tape-btn small" data-dscript>Télécharger le fichier d'envoi</button><button class="btn ghost small" data-dclear>Tout désélectionner</button>` : ""}
+      </div>
+      <details style="margin-top:8px"><summary class="tiny muted" style="cursor:pointer">Comment ça marche</summary><ol class="small" style="padding-left:18px;margin:6px 0">
+        <li>Prends l'abonnement Google One 2 To sur le compte Google qui recevra les vidéos.</li>
+        <li>Mets le fichier d'envoi dans le dossier que tu as choisi dans l'appli (« ${esc(root?.name || "ton dossier")} »), puis double-clique dessus.</li>
+        <li>La première fois : il installe l'outil d'envoi (accepte), tu le relances, une page Google s'ouvre : connecte-toi et accepte.</li>
+        <li>Laisse tourner (la nuit). Google limite à 750 Go par jour : relance-le le lendemain, il reprend où il s'est arrêté.</li>
+        <li>Sur ton Drive, tout arrive dans « ${DRIVE_ROOT} », rangé par discipline, ceinture et catégorie. Dans l'appli, « Regarder sur Drive » retrouve chaque instructional.</li>
+      </ol></details>
+    </section>`;
   };
 
   const pick = async () => {
@@ -228,7 +416,7 @@ export function openLocalVideos() {
   };
   const load = async () => {
     body.innerHTML = intro + `<p class="muted small" data-prog>Lecture du disque dur…</p>`;
-    try { files = (await scan(root, (n) => { const p = body.querySelector("[data-prog]"); if (p) p.textContent = `Lecture du disque dur… ${n} vidéos trouvées`; })).filter((f) => !f.path.startsWith("Fiches Fight Art/")); fiches = { ...(store.get().localFiches || {}), ...(await loadFiches(root)) }; saveCatalog(); }
+    try { files = (await scan(root, (n) => { const p = body.querySelector("[data-prog]"); if (p) p.textContent = `Lecture du disque dur… ${n} vidéos trouvées`; })).filter((f) => !f.path.startsWith("Fiches Fight Art/")); fiches = { ...(store.get().localFiches || {}), ...(await loadFiches(root)) }; saveCatalog(); await cacheReady; }
     catch (e) { files = []; toast("Impossible de lire ce dossier : le disque est-il bien branché ?"); body.innerHTML = `<p class="notice is-warn small">Lecture impossible (${esc(e?.message || "erreur inconnue")}). Vérifie que le disque est branché, puis choisis le dossier principal des vidéos.</p><button class="btn tape-btn block" data-pick style="margin-top:10px">Choisir le dossier</button>`; return; }
     draw();
     let last = 0;
@@ -257,6 +445,31 @@ export function openLocalVideos() {
       store.update((s) => { s.localLinks = { ...(s.localLinks || {}) }; if (url) s.localLinks[folder] = url; else delete s.localLinks[folder]; });
       toast(url ? "Lien enregistré (visible par toi seul)" : "Lien retiré"); draw(); return;
     }
+    const ds = e.target.closest("[data-dsel]");
+    if (ds) { e.preventDefault(); const r = ds.dataset.dsel; store.update((s) => { s.driveSel = { ...(s.driveSel || {}) }; if (s.driveSel[r]) delete s.driveSel[r]; else s.driveSel[r] = 1; }); draw(); return; }
+    const vw = e.target.closest("[data-view]");
+    if (vw) { view = vw.dataset.view; draw(); return; }
+    if (e.target.closest("[data-dclear]")) { if (confirm("Vider toute la sélection Drive ?")) { store.update((s) => { s.driveSel = {}; }); draw(); } return; }
+    if (e.target.closest("[data-dauto]")) {
+      const over = store.get().localClass || {};
+      const gs = buildGroups(files).map((g) => classifyGroup(g, over));
+      gs.forEach((g) => { const t = g.items.filter((f) => okFor(f) !== undefined); if (t.length) g.okRatio = t.filter((f) => okFor(f) === 1).length / t.length; });
+      const pick = autoPick(gs);
+      const had = Object.keys(driveSel()).length;
+      if (had && !confirm(`Remplacer ta sélection actuelle (${had}) par la sélection proposée (${Object.keys(pick).length}) ?`)) return;
+      store.update((s) => { s.driveSel = pick; });
+      view = "drive"; draw(); toast(`${Object.keys(pick).length} instructionals proposés : calcul de la taille…`);
+      await sizeAll(); return;
+    }
+    if (e.target.closest("[data-dsize]")) { await sizeAll(); return; }
+    if (e.target.closest("[data-dscript]")) {
+      const over = store.get().localClass || {}, sel = driveSel();
+      const gs = buildGroups(files).filter((g) => sel[g.root]).map((g) => classifyGroup(g, over));
+      if (!gs.length) { toast("Sélection vide sur ce dossier"); return; }
+      download("Envoi-Drive-Fight-Art.bat", driveScript(gs));
+      toast("Fichier d'envoi téléchargé : mets-le dans le dossier choisi, puis double-clique");
+      return;
+    }
     const ok = e.target.closest("[data-onlyok]");
     if (ok) { onlyOk = ok.dataset.onlyok === "1"; draw(); return; }
     const dc = e.target.closest("[data-vdisc]");
@@ -277,6 +490,26 @@ export function openLocalVideos() {
       toast("Catalogue téléchargé : envoie-le à Claude pour préparer les fiches");
     }
   });
+  // taille de la sélection (lecture des tailles de fichiers sur le disque, sans les ouvrir)
+  const sizeAll = async () => {
+    const sel = driveSel();
+    const gs = buildGroups(files).filter((g) => sel[g.root] && sizeCache[g.root] === undefined);
+    let n = 0;
+    for (const g of gs) { await groupSize(g); if (++n % 10 === 0 && body.isConnected) { const p = body.querySelector("[data-dsize]"); if (p) p.textContent = `Calcul… ${n}/${gs.length}`; } }
+    if (!body.isConnected) return;
+    // trop gros pour 2 To : on retire les moins prioritaires (catégories « divers » et doublons d'abord)
+    const over = store.get().localClass || {};
+    const all = buildGroups(files).filter((g) => sel[g.root]).map((g) => classifyGroup(g, over));
+    let tot = all.reduce((a, g) => a + (sizeCache[g.root] || 0), 0);
+    if (tot > BUDGET) {
+      const dup = new Set();
+      const ranked = all.map((g) => { const s = autoScore(g, dup); dup.add(dupKey(g.root)); return { g, s: s - (g.theme.id === "autres" ? 2 : 0) - (g.belt?.id === "marron" ? 1 : 0) }; }).sort((a, b) => a.s - b.s);
+      const drop = [];
+      for (const { g } of ranked) { if (tot <= BUDGET) break; tot -= sizeCache[g.root] || 0; drop.push(g.root); }
+      if (drop.length && confirm(`La sélection dépasse 2 To. Retirer automatiquement les ${drop.length} instructionals les moins prioritaires ?`)) store.update((s) => { s.driveSel = { ...(s.driveSel || {}) }; drop.forEach((r) => delete s.driveSel[r]); });
+    }
+    draw(); toast("Taille calculée");
+  };
   body.addEventListener("change", (e) => {
     const sel = e.target.closest("[data-cls]");
     if (!sel) return;
