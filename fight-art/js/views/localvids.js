@@ -3,7 +3,7 @@
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { store } from "../store.js";
-import { DISCIPLINES, classify, translateTitle } from "../vid-classify.js";
+import { DISCIPLINES, classify, translateTitle, themeOf, themesOf, beltOf, BELTS, BELT_DISCS } from "../vid-classify.js";
 
 const VIDEO = /\.(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|flv|ts)$/i;
 const PLAYABLE = /\.(mp4|m4v|mov|webm|mkv)$/i;
@@ -146,7 +146,7 @@ async function testAll(onStep) {
 
 export function openLocalVideos() {
   const body = openSheet("Ma vidéothèque privée", "");
-  let q = "", disc = "", onlyOk = true;
+  let q = "", disc = "", onlyOk = true, theme = "", belt = "";
   const phone = !localSupported();
   const intro = phone ? `<p class="small muted" style="margin-top:0">Sur téléphone : ton catalogue, tes fiches et tes notes. Pour regarder, ajoute à chaque instructional le lien privé de son dossier sur ton Google Drive ou OneDrive (partage « restreint », toi seul). Les liens restent sur ton compte coach, personne d'autre ne les voit.</p>` : `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par discipline et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : sa fiche de travail (si elle est prête sur le disque) et tes notes.</p>`;
 
@@ -165,18 +165,50 @@ export function openLocalVideos() {
     const groups = [];
     list.forEach((f) => { let g = groups.find((x) => x.folder === f.folder); if (!g) groups.push(g = { folder: f.folder, items: [] }); g.items.push(f); });
     // chaque instructional reçoit sa discipline (nom du dossier + noms des vidéos)
-    groups.forEach((g) => { g.disc = classify(`${g.folder} ${g.folder} ${g.items.slice(0, 30).map((i) => i.name).join(" ")}`); });
+    const over = store.get().localClass || {};
+    groups.forEach((g) => {
+      const text = `${g.folder} ${g.folder} ${g.items.slice(0, 30).map((i) => i.name).join(" ")}`;
+      const o = over[g.folder] || {};
+      g.disc = DISCIPLINES.find((d) => d.id === o.disc) || classify(text);
+      g.theme = themesOf(g.disc.id).find((t) => t.id === o.theme) || themeOf(g.disc.id, text);
+      g.belt = BELT_DISCS.includes(g.disc.id) ? (BELTS.find((b) => b.id === o.belt) || beltOf(text, g.theme.id)) : null;
+      g.fixed = Boolean(over[g.folder]);
+    });
     const counts = {}; groups.forEach((g) => { counts[g.disc.id] = (counts[g.disc.id] || 0) + 1; });
-    const shown = disc ? groups.filter((g) => g.disc.id === disc) : groups;
-    const ordered = DISCIPLINES.flatMap((d) => shown.filter((g) => g.disc.id === d.id));
+    const inDisc = disc ? groups.filter((g) => g.disc.id === disc) : groups;
+    const shown = inDisc.filter((g) => (!theme || g.theme.id === theme) && (!belt || g.belt?.id === belt));
+    // ordre : discipline → ceinture (blanche à noire) → catégorie dans l'ordre d'apprentissage → titre
+    const nat = (a, b) => a.localeCompare(b, "fr", { numeric: true, sensitivity: "base" });
+    const rank = (g) => [DISCIPLINES.indexOf(g.disc), g.belt ? BELTS.indexOf(g.belt) : 0, themesOf(g.disc.id).findIndex((t) => t.id === g.theme.id)];
+    const ordered = [...shown].sort((a, b) => { const ra = rank(a), rb = rank(b); return ra[0] - rb[0] || ra[1] - rb[1] || ra[2] - rb[2] || nat(a.folder, b.folder); });
+    const dObj = DISCIPLINES.find((d) => d.id === disc);
+    const subChips = !disc ? "" : `${BELT_DISCS.includes(disc) ? `<div class="chips" style="margin-bottom:6px"><button class="chip" data-vbelt="" aria-pressed="${!belt}">Toutes ceintures</button>${BELTS.filter((b) => inDisc.some((g) => g.belt?.id === b.id)).map((b) => `<button class="chip" data-vbelt="${b.id}" aria-pressed="${belt === b.id}"><span style="display:inline-block;width:14px;height:6px;border-radius:2px;background:${b.color};border:1px solid #555;margin-right:6px"></span>${esc(b.label.replace("Ceinture ", ""))} · ${inDisc.filter((g) => g.belt?.id === b.id).length}</button>`).join("")}</div>` : ""}
+      <div class="chips" style="margin-bottom:8px"><button class="chip" data-vtheme="" aria-pressed="${!theme}">Toutes catégories</button>${themesOf(disc).filter((t) => inDisc.some((g) => g.theme.id === t.id)).map((t) => `<button class="chip" data-vtheme="${t.id}" aria-pressed="${theme === t.id}">${esc(t.label)} · ${inDisc.filter((g) => g.theme.id === t.id).length}</button>`).join("")}</div>`;
+    const head = (g, gi) => {
+      const prev = ordered[gi - 1];
+      let h = "";
+      if (!prev || prev.disc !== g.disc) h += `<h3 class="sys-h" style="color:${g.disc.color};margin-top:16px">${esc(g.disc.label)}</h3>`;
+      if (g.belt && (!prev || prev.disc !== g.disc || prev.belt !== g.belt)) h += `<div class="row" style="gap:8px;margin:12px 0 4px;align-items:center"><span style="width:34px;height:10px;border-radius:3px;background:${g.belt.color};border:1px solid #555;flex:none"></span><b class="small">${esc(g.belt.label)}</b><span class="tiny muted">${esc(g.belt.sub)}</span></div>`;
+      if (!prev || prev.disc !== g.disc || prev.belt !== g.belt || prev.theme.id !== g.theme.id) h += `<div class="tiny" style="margin:8px 0 4px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">${esc(g.theme.label)}</div>`;
+      return h;
+    };
+    const classer = (g) => `<details style="margin:6px 0"><summary class="tiny muted" style="cursor:pointer">Classer autrement${g.fixed ? " (classé à la main)" : ""}</summary>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">
+        <select class="input" data-cls="disc" data-folder="${esc(g.folder)}" style="flex:1;min-width:140px">${DISCIPLINES.map((d) => `<option value="${d.id}"${d === g.disc ? " selected" : ""}>${esc(d.label)}</option>`).join("")}</select>
+        ${g.belt ? `<select class="input" data-cls="belt" data-folder="${esc(g.folder)}" style="flex:1;min-width:140px">${BELTS.map((b) => `<option value="${b.id}"${b === g.belt ? " selected" : ""}>${esc(b.label)}</option>`).join("")}</select>` : ""}
+        <select class="input" data-cls="theme" data-folder="${esc(g.folder)}" style="flex:1;min-width:160px">${themesOf(g.disc.id).map((t) => `<option value="${t.id}"${t.id === g.theme.id ? " selected" : ""}>${esc(t.label)}</option>`).join("")}</select>
+        ${g.fixed ? `<button class="btn ghost small" data-clsreset="${esc(g.folder)}">Classement auto</button>` : ""}
+      </div></details>`;
     body.innerHTML = intro + `
       <div class="row" style="gap:8px;margin-bottom:10px"><input class="input" data-q placeholder="Rechercher (technique, auteur…)" value="${esc(q)}" style="flex:1">${phone ? "" : `<button class="btn ghost small" data-pick>Changer de dossier</button>`}</div>
       <div class="chips" style="margin-bottom:8px"><button class="chip" data-vdisc="" aria-pressed="${!disc}">Tout · ${groups.length}</button>${DISCIPLINES.filter((d) => counts[d.id]).map((d) => `<button class="chip" data-vdisc="${d.id}" aria-pressed="${disc === d.id}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${d.color};margin-right:6px"></span>${esc(d.label)} · ${counts[d.id]}</button>`).join("")}</div>
+      ${subChips}
       ${phone ? "" : `<div class="panel" style="padding:10px 12px;margin-bottom:8px"><p class="small" style="margin:0"><b style="color:var(--tape)">${okFiles.length} vidéo${okFiles.length > 1 ? "s" : ""} lisible${okFiles.length > 1 ? "s" : ""}</b> sur ${files.length}${pending ? ` · <span data-okprog>test en cours : ${tested.length}/${files.length}</span>` : ` · ${files.length - okFiles.length} illisibles dans le navigateur`}</p>
         <div class="chips" style="margin-top:8px"><button class="chip" data-onlyok="1" aria-pressed="${onlyOk}">Seulement les lisibles</button><button class="chip" data-onlyok="0" aria-pressed="${!onlyOk}">Tout afficher</button></div></div>`}
       <p class="tiny muted">${list.length} affichée${list.length > 1 ? "s" : ""} · ${files.length} vidéos dans ${new Set(files.map((f) => f.folder)).size} dossiers${root ? ` · dossier « ${esc(root.name)} »` : ""} · ${(() => { const n = files.filter((f) => fiches[f.path]).length; return n + (n > 1 ? " fiches prêtes" : " fiche prête"); })()} · titres traduits automatiquement</p>
       ${!ordered.length && !phone && onlyOk && pending ? `<p class="muted small">Test de lisibilité en cours… les vidéos lisibles apparaissent ici au fur et à mesure.</p>` : ""}
-      ${ordered.slice(0, 300).map((g, gi) => `${gi === 0 || ordered[gi - 1].disc.id !== g.disc.id ? `<h3 class="sys-h" style="color:${g.disc.color};margin-top:14px">${esc(g.disc.label)}</h3>` : ""}<details class="sys-card" style="border-left:4px solid ${g.disc.color}"${q ? " open" : ""}><summary><b>${esc(translateTitle(folderName(g.folder)))}</b><span class="tiny muted" style="display:block">${esc(folderName(g.folder))} · ${g.items.length} vidéo${g.items.length > 1 ? "s" : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></summary>
+      ${ordered.slice(0, 400).map((g, gi) => `${head(g, gi)}<details class="sys-card" style="border-left:4px solid ${g.belt ? g.belt.color : g.disc.color}"${q ? " open" : ""}><summary><b>${esc(translateTitle(folderName(g.folder)))}</b><span class="tiny muted" style="display:block">${esc(folderName(g.folder))} · ${g.items.length} vidéo${g.items.length > 1 ? "s" : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></summary>
+        ${classer(g)}
         <div class="row" style="gap:8px;margin:6px 0;flex-wrap:wrap">${linkOf(g.folder) ? `<a class="btn tape-btn small" href="${esc(linkOf(g.folder))}" target="_blank" rel="noopener">${icon("play")} Regarder</a>` : ""}<button class="btn ghost small" data-flink="${esc(g.folder)}">${linkOf(g.folder) ? "Modifier le lien" : "Ajouter le lien privé (Plex, Drive…)"}</button></div>
         ${fiches[`${g.folder}/__systeme__`] ? `<details style="margin:6px 0"><summary class="small" style="font-weight:700;cursor:pointer;color:var(--tape)">Fiche système de l'instructional</summary>${ficheHtml(fiches[`${g.folder}/__systeme__`])}</details>` : ""}
         ${g.items.map((i) => `<button class="row between" data-play="${esc(i.path)}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);color:inherit;padding:10px 0;gap:8px"><span style="min-width:0"><span class="small"${!phone && okCache[i.path] === 0 ? ' style="opacity:.55"' : ""}>${!phone && okCache[i.path] === 0 ? '<span class="tiny" style="color:#F25F5C">illisible · </span>' : ""}${esc(translateTitle(pretty(i.name)))}${fiches[i.path] ? ` <span class="insigne">fiche</span>` : ""}${notes[`local:${i.path}`] ? ` <span class="tiny" style="color:var(--tape)">✎</span>` : ""}</span><span class="tiny muted" style="display:block">${esc(pretty(i.name))}</span></span>${icon("play", 'style="width:18px;height:18px;flex:none"')}</button>`).join("")}
@@ -228,7 +260,13 @@ export function openLocalVideos() {
     const ok = e.target.closest("[data-onlyok]");
     if (ok) { onlyOk = ok.dataset.onlyok === "1"; draw(); return; }
     const dc = e.target.closest("[data-vdisc]");
-    if (dc) { disc = dc.dataset.vdisc; draw(); return; }
+    if (dc) { disc = dc.dataset.vdisc; theme = ""; belt = ""; draw(); return; }
+    const tc = e.target.closest("[data-vtheme]");
+    if (tc) { theme = tc.dataset.vtheme; draw(); return; }
+    const bc = e.target.closest("[data-vbelt]");
+    if (bc) { belt = bc.dataset.vbelt; draw(); return; }
+    const rs = e.target.closest("[data-clsreset]");
+    if (rs) { store.update((s) => { s.localClass = { ...(s.localClass || {}) }; delete s.localClass[rs.dataset.clsreset]; }); toast("Classement automatique remis"); draw(); return; }
     const pl = e.target.closest("[data-play]");
     if (pl) { const f = files.find((x) => x.path === pl.dataset.play); if (f) playVideo(f, () => { openLocalVideos(); }); return; }
     if (e.target.closest("[data-conv]")) { downloadConverter(); return; }
@@ -238,6 +276,17 @@ export function openLocalVideos() {
       const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })); a.download = "catalogue-videos.csv"; a.click();
       toast("Catalogue téléchargé : envoie-le à Claude pour préparer les fiches");
     }
+  });
+  body.addEventListener("change", (e) => {
+    const sel = e.target.closest("[data-cls]");
+    if (!sel) return;
+    const folder = sel.dataset.folder;
+    // on fige le classement actuel de l'instructional, puis on applique le choix
+    const box = sel.closest("div");
+    const cur = Object.fromEntries([...box.querySelectorAll("[data-cls]")].map((x) => [x.dataset.cls, x.value]));
+    if (sel.dataset.cls === "disc") { delete cur.theme; delete cur.belt; }
+    store.update((s) => { s.localClass = { ...(s.localClass || {}), [folder]: cur }; });
+    toast("Classement enregistré"); draw();
   });
   body.addEventListener("input", (e) => { if (e.target.matches("[data-q]")) { q = e.target.value.trim().toLowerCase(); const pos = e.target.selectionStart; draw(); const i = body.querySelector("[data-q]"); i.focus(); i.setSelectionRange(pos, pos); } });
 
