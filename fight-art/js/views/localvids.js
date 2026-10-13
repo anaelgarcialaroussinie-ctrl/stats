@@ -3,6 +3,8 @@
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { store } from "../store.js";
+import { positionIllus } from "../parcours-illus.js";
+import { ficheCours } from "../parcours-fiches.js";
 import { PARCOURS_INTRO, PARCOURS_BELTS, POSITIONS, resolveParcours } from "../parcours.js";
 import { DISCIPLINES, classify, translateTitle, themeOf, themesOf, beltOf, BELTS, BELT_DISCS } from "../vid-classify.js";
 
@@ -418,8 +420,10 @@ export function openLocalVideos() {
         ${posList.map((p) => `<section style="margin:16px 0 6px">
           <div class="row between" style="gap:8px;align-items:baseline"><h3 class="sys-h" style="margin:0">${esc(p.label)}</h3><span class="tiny muted">programme : ${esc(p.sys)}</span></div>
           <p class="tiny muted" style="margin:2px 0 6px">${esc(p.note)}</p>
+        ${positionIllus(p.id)}
           ${p.to.length ? `<div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="tiny muted">Transitions →</span>${p.to.map(([id, how]) => `<button class="chip" data-ppos="${id}" style="font-size:12px">${esc(posName(id))} <span class="muted">(${esc(how)})</span></button>`).join("")}</div>` : ""}
           ${vis.filter((x) => x.pos === p.id).map((x) => `<div style="margin:8px 0 2px"><div class="row" style="gap:8px;align-items:baseline"><span style="width:28px;height:9px;border-radius:2px;background:${beltCol(x.belt)};border:1px solid #555;flex:none;transform:translateY(-1px)" title="Ceinture ${esc(x.belt)}"></span><span style="min-width:0"><b class="small">${esc(x.title)}</b> <span class="tiny muted">· ${esc(x.author)} · semaines ${esc(x.w)}</span><span class="tiny" style="display:block;margin-top:2px">${esc(x.why)}</span></span></div>
+            <details style="margin:4px 0 0 36px"><summary class="tiny" style="font-weight:800;cursor:pointer;color:var(--tape)">Fiche de cours</summary>${ficheCours(x, esc)}</details>
             ${x.g ? card(x.g) : `<p class="tiny muted" style="margin:4px 0 0 36px">Pas trouvé sur ton disque.</p>`}</div>`).join("")}
         </section>`).join("")}`;
       lastGroups = found.map((x) => x.g);
@@ -675,9 +679,31 @@ async function playVideo(f, back) {
   const blob = file.type ? file : new Blob([file], { type: MIME[ext] || "video/mp4" });
   url = URL.createObjectURL(blob);
   box.innerHTML = `<video src="${url}" controls playsinline preload="metadata" style="width:100%;max-height:70vh;border-radius:12px;background:#000"></video>
-    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn ghost small" data-tab>Ouvrir en grand dans un onglet</button></div><p data-verr></p>`;
+    <div class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><button class="btn ghost small" data-tab>Ouvrir en grand dans un onglet</button><button class="btn ghost small" data-mstart>⏺ Début du moment</button><button class="btn ghost small" data-mend disabled>⏹ Fin du moment</button></div><p data-verr></p>
+    <div data-moments></div>`;
   const v = box.querySelector("video"), err = box.querySelector("[data-verr]");
   box.querySelector("[data-tab]").addEventListener("click", () => window.open(url, "_blank"));
+  // moments clés : repères début → fin dans la vidéo (privés, pour réviser vite le passage utile)
+  const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  const momentsOf = () => (store.get().localMoments || {})[f.path] || [];
+  let mStart = null, stopAt = null;
+  const drawMoments = () => {
+    const m = momentsOf(), box2 = box.querySelector("[data-moments]");
+    box2.innerHTML = m.length ? `<div class="tiny" style="font-weight:800;margin:8px 0 4px">Moments clés</div>${m.map((x, i) => `<div class="row between" style="gap:6px;border-top:1px solid var(--line);padding:6px 0"><button class="btn ghost small" data-mplay="${i}">▶ ${fmt(x.a)} → ${fmt(x.b)}</button><span class="small" style="flex:1;min-width:0">${esc(x.label)}</span><button class="icon-btn" data-mdel="${i}" aria-label="Supprimer">✕</button></div>`).join("")}` : "";
+  };
+  drawMoments();
+  v.addEventListener("timeupdate", () => { if (stopAt !== null && v.currentTime >= stopAt) { v.pause(); stopAt = null; } });
+  box.addEventListener("click", (e) => {
+    if (e.target.closest("[data-mstart]")) { mStart = v.currentTime; box.querySelector("[data-mend]").disabled = false; toast(`Début marqué à ${fmt(mStart)} : lance la lecture, puis « Fin du moment »`); return; }
+    if (e.target.closest("[data-mend]")) {
+      const b = v.currentTime; if (mStart === null || b <= mStart) { toast("La fin doit être après le début"); return; }
+      const label = prompt("Ce que montre ce moment (ex. « grip + angle du knee cut ») :", "") || "Moment clé";
+      store.update((s) => { s.localMoments = { ...(s.localMoments || {}) }; s.localMoments[f.path] = [...(s.localMoments[f.path] || []), { a: Math.round(mStart), b: Math.round(b), label }].sort((x, y) => x.a - y.a); });
+      mStart = null; box.querySelector("[data-mend]").disabled = true; drawMoments(); toast("Moment enregistré"); return;
+    }
+    const mp = e.target.closest("[data-mplay]"); if (mp) { const x = momentsOf()[+mp.dataset.mplay]; v.currentTime = x.a; stopAt = x.b; v.play(); return; }
+    const md = e.target.closest("[data-mdel]"); if (md && confirm("Supprimer ce moment ?")) { store.update((s) => { s.localMoments = { ...(s.localMoments || {}) }; s.localMoments[f.path] = (s.localMoments[f.path] || []).filter((_, i) => i !== +md.dataset.mdel); }); drawMoments(); }
+  });
   const codecMsg = (why) => { err.innerHTML = `<span class="notice is-warn small" style="display:block">${why} ${convHelp}<br><button class="btn tape-btn small" data-conv2 style="margin-top:8px">Télécharger le convertisseur</button><br>En attendant, essaie « Ouvrir en grand dans un onglet », ou ${vlc}</span>`; };
   err.addEventListener("click", (e) => { if (e.target.closest("[data-conv2]")) downloadConverter(); });
   v.addEventListener("loadeddata", () => { if (v.videoWidth) { okCache[f.path] = 1; saveOk(); } });
