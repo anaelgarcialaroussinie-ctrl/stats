@@ -98,3 +98,38 @@ export function resolveParcours(groups) {
     return { ...step, n: i + 1, g };
   });
 }
+
+// Vidéos gratuites des auteurs (YouTube), une par étape quand elle existe : libres d'accès, partageables avec le club.
+// id = identifiant YouTube · t = titre · a = auteur. Le coach peut en ajouter d'autres dans l'appli.
+const FREE = {
+  "base:Fondations du grappling I à VI": [{ id: "Ti7gpEVwMmE", t: "The fundamentals of BJJ: Escapes", a: "Lachlan Giles" }],
+  "debout:Fondations de la lutte : attaquer": [{ id: "7igJLHdcg1I", t: "No Gi Double leg takedown", a: "Lachlan Giles" }],
+  "debout:Fondamentaux « Cowboy » : attaque": [{ id: "2bEGb61bGpg", t: "Finishing The Low Single Takedown", a: "John Smith" }],
+  "debout:Feet to Floor : du debout au sol": [{ id: "-rC5-LeRu2o", t: "The Easiest Jiu Jitsu No Gi Takedowns", a: "John Danaher" }],
+  "debout:Amenées par le haut du corps": [{ id: "Lxvwd26mYss", t: "Front Body Locks vs Side Body Locks", a: "John Danaher" }],
+  "fhl:Sortir du front headlock": [{ id: "Ly89G4iCTSQ", t: "Turtle No Grips Primary Escape Rolling to Guard", a: "Lachlan Giles" }],
+  "fhl:Attaquer le front headlock en système": [{ id: "8hzRbpUfawY", t: "Incredible Front Headlock Attacks", a: "Gordon Ryan" }],
+  "gfermee:Attaquer depuis la garde fermée": [{ id: "nU9YxDabnSU", t: "Understanding The Closed Guard", a: "Gordon Ryan" }],
+  "gouverte:Rétention de garde": [{ id: "ce_0XT1BBQA", t: "How To Do Perfect Guard Retention In BJJ", a: "John Danaher" }],
+  "gouverte:Garde ouverte : les deux fondations": [{ id: "gOFADlBRlgY", t: "The Perfect Way To Understand The No Gi Open Guard", a: "John Danaher" }],
+  "gouverte:Garde ouverte : renversements": [{ id: "CjJibH91RkE", t: "How To Attack And Counter Attack From No Gi Open Guard", a: "John Danaher" }],
+  "demigarde:Demi-garde no-gi : trois directions d'attaque": [{ id: "Ze10eulM1xg", t: "How To Build The Perfect Half Guard Game For No Gi", a: "John Danaher" }],
+  "passage:Passer la garde en no-gi": [{ id: "isv_6Hd1Iac", t: "How To Perfect Your Guard Passing No Gi", a: "John Danaher" }],
+  "passage:Attaquer la garde 2.0": [{ id: "r-FNcolHsg4", t: "Learn How To Do The Perfect Jiu Jitsu Body Lock Pass", a: "Gordon Ryan" }],
+  "lateral:Sortir des positions (latéral, montée, dos)": [{ id: "cuXq-k__9lQ", t: "How To Do The Perfect BJJ Side Control Escape", a: "John Danaher" }, { id: "EMEueexp9zU", t: "How To Do The Perfect BJJ Mount Escape", a: "John Danaher" }],
+  "lateral:Attaquer depuis le latéral et le nord-sud": [{ id: "q-69iv2-icc", t: "Modified Kimura from North South", a: "Lachlan Giles" }],
+  "lateral:Un système de latéral complet": [{ id: "Nk47F1A3epo", t: "Side to Rear Mount Reactive", a: "John Danaher" }],
+  "montee:Attaques depuis la montée": [{ id: "8FbGenSia08", t: "Learn How To Do The Perfect Jiu Jitsu Mount Attack", a: "John Danaher" }],
+  "montee:Attaquer depuis la montée en système": [{ id: "kft2AkvKhWU", t: "Best Way To Control The Mount In Jiu Jitsu", a: "Gordon Ryan" }],
+  "dos:Attaquer le dos, pour le combat et le grappling": [{ id: "NUMXYYjEszU", t: "Establishing Hooks and Rear Mount", a: "John Danaher" }],
+  "dos:Le dos, partie 2 : crucifix, kimura, triangle": [{ id: "7WCuDZ_OAnY", t: "Kimura Finish from Crucifix", a: "Ryan Hall" }],
+  "dos:Sortir du dos en système": [{ id: "9TRErC6vbKo", t: "Back Escape - No Gi", a: "Lachlan Giles" }],
+  "jambes:Sécurité des jambes : sortir et contrer": [{ id: "uxCWCwnF6EQ", t: "Heel Hook Escape", a: "Gordon Ryan" }],
+  "jambes:Attaquer les jambes en système": [{ id: "AamW7ZXYgJ4", t: "Underhook to Ashi Garami", a: "Gordon Ryan" }],
+  "soumissions:Défendre les soumissions": [{ id: "KC66GKalJcU", t: "The Best Jiu Jitsu Submission Escapes", a: "John Danaher" }],
+  "soumissions:Luta Livre : soumissions de base": [{ url: "https://www.youtube.com/channel/UCSJq9BBZo-aDzQHVGP0RdQA/videos", t: "La chaîne de Nicolas Renier (NRFight)", a: "Nicolas Renier" }],
+  "soumissions:Luta Livre : défense de guillotine": [{ id: "juaHGE92Vec", t: "Guillotine Escape", a: "Gordon Ryan" }],
+  "soumissions:La kimura de A à Z": [{ id: "mLLQBxG1ojo", t: "Half Guard Kimura Series", a: "Lachlan Giles" }],
+  "soumissions:La guillotine en système": [{ id: "Veqp_HoCof4", t: "Guillotine Choke", a: "Gordon Ryan" }],
+};
+export const freeVideos = (step) => FREE[`${step.pos}:${step.title}`] || [];

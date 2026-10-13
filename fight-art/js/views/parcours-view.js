@@ -5,7 +5,7 @@ import { sync } from "../sync.js";
 import { myNote } from "../study-notes.js";
 import { positionIllus } from "../parcours-illus.js";
 import { ficheCours } from "../parcours-fiches.js";
-import { PARCOURS, POSITIONS, PARCOURS_BELTS } from "../parcours.js";
+import { PARCOURS, POSITIONS, PARCOURS_BELTS, freeVideos } from "../parcours.js";
 import { BELTS } from "../vid-classify.js";
 
 const q = (step) => `${step.author} ${step.m[0].source.replace(/\\[.*+?^${}()|[\]\\]|\(\?!.*?\)|\$|\\s\+|\\/g, " ").replace(/\s+/g, " ").trim()}`;
@@ -25,7 +25,7 @@ export function openParcoursPublic() {
   const draw = () => {
     const vis = PARCOURS.filter((x) => (!belt || x.belt === belt) && (!pos || x.pos === pos));
     body.innerHTML = `<p class="small muted" style="margin-top:0">Les instructionals choisis par le coach, rangés par position, de la ceinture blanche à la violette, avec les semaines du programme où ils servent. Une étape à la fois : regarde, retiens 2 ou 3 détails, drille, teste en sparring à thème.</p>
-      <p class="tiny notice" style="margin:0 0 10px">Les formations payantes ne sont pas diffusées dans l'appli. Sous chaque étape : les vidéos ajoutées par le coach (ses démos, les vidéos gratuites des auteurs), les extraits gratuits et où se procurer la version officielle.</p>
+      <p class="tiny notice" style="margin:0 0 10px">Sous chaque étape : une vidéo gratuite d'un grand pédagogue (Danaher, Lachlan Giles, Gordon Ryan, Ryan Hall, John Smith), la fiche de cours, et les démos du coach. Choisis ta ceinture et une position pour aller droit au but.</p>
       <div class="chips" style="margin-bottom:6px"><button class="chip" data-b="" aria-pressed="${!belt}">Toutes ceintures</button>${PARCOURS_BELTS.map((b) => `<button class="chip" data-b="${b.id}" aria-pressed="${belt === b.id}"><span style="display:inline-block;width:14px;height:6px;border-radius:2px;background:${col(b.id)};border:1px solid #555;margin-right:6px"></span>${esc(b.label)}</button>`).join("")}</div>
       <div class="chips" style="margin-bottom:10px"><button class="chip" data-p="" aria-pressed="${!pos}">Toutes positions</button>${POSITIONS.filter((p) => PARCOURS.some((x) => x.pos === p.id && (!belt || x.belt === belt))).map((p) => `<button class="chip" data-p="${p.id}" aria-pressed="${pos === p.id}">${esc(p.label)}</button>`).join("")}</div>
       ${POSITIONS.filter((p) => vis.some((x) => x.pos === p.id)).map((p) => `<section style="margin:16px 0 6px">
@@ -37,6 +37,7 @@ export function openParcoursPublic() {
           <b class="small">${esc(x.title)}</b> <span class="tiny muted">· ${esc(x.author)} · semaines ${esc(x.w)}</span>
           <p class="tiny" style="margin:4px 0 8px">${esc(x.why)}</p>
           <details class="fiche-d"${pos ? " open" : ""}><summary class="small" style="font-weight:800;cursor:pointer;color:var(--tape)">Fiche de cours</summary>${ficheCours(x, esc)}</details>
+          ${freeVideos(x).map((v) => v.id ? `<div style="margin:6px 0"><button class="yt-thumb" data-yt="${v.id}" aria-label="Lire ${esc(v.t)}" style="position:relative;display:block;width:100%;padding:0;border:0;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:16/9;cursor:pointer"><img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;opacity:.85"><span style="position:absolute;inset:0;display:grid;place-items:center"><span style="width:58px;height:58px;border-radius:50%;background:rgba(198,244,50,.95);display:grid;place-items:center;color:#111;font-size:24px">▶</span></span></button><p class="tiny muted" style="margin:4px 0 0">Vidéo gratuite · ${esc(v.a)} · « ${esc(v.t)} »</p></div>` : `<a class="btn ghost small" href="${esc(v.url)}" target="_blank" rel="noopener" style="margin:6px 0">${esc(v.t)}</a>`).join("")}
           ${links.filter((l) => l.topic === key(x)).map((l) => `<div style="margin:6px 0">${ytId(l.url) ? `<div style="position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000"><iframe src="https://www.youtube-nocookie.com/embed/${ytId(l.url)}" title="${esc(l.title)}" loading="lazy" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe></div>` : `<a class="btn tape-btn small" href="${esc(l.url)}" target="_blank" rel="noopener">Regarder : ${esc(l.title)}</a>`}${l.note ? `<p class="tiny muted" style="margin:4px 0 0">${esc(l.note)}</p>` : ""}${coach ? `<button class="btn ghost small" data-rmlink="${esc(l.id)}" style="margin-top:4px">Retirer cette vidéo</button>` : ""}</div>`).join("")}
           <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn ghost small" href="${yt(x)}" target="_blank" rel="noopener">Extraits gratuits</a><a class="btn ghost small" href="${web(x)}" target="_blank" rel="noopener">Version officielle</a>${coach ? `<button class="btn tape-btn small" data-addv="${esc(key(x))}" data-t="${esc(x.title)}">+ Vidéo pour les fighters</button>` : ""}</div>
           ${myNote(`parcours:${x.pos}:${x.title}`, `Parcours · ${x.title}`, { placeholder: "Les 2 ou 3 détails que je retiens, mes drills, ce qui a marché en sparring…" })}
@@ -44,6 +45,8 @@ export function openParcoursPublic() {
       </section>`).join("")}`;
   };
   body.addEventListener("click", async (e) => {
+    const th = e.target.closest("[data-yt]");
+    if (th) { th.outerHTML = `<div style="position:relative;padding-top:56.25%;border-radius:10px;overflow:hidden;background:#000"><iframe src="https://www.youtube-nocookie.com/embed/${th.dataset.yt}?autoplay=1&rel=0" title="Vidéo" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe></div>`; return; }
     const add = e.target.closest("[data-addv]");
     if (add) {
       const url = prompt("Lien de la vidéo pour cette étape (YouTube non répertorié de ta démo, ou vidéo gratuite officielle de l'auteur) :", "");

@@ -105,16 +105,15 @@ export function renderAcademy(el, ctx) {
 
     </div><div data-seg="videos">
     <h2 class="h-sec">Vidéothèque du club</h2>
+    <section class="panel" style="margin-bottom:12px;border-left:4px solid var(--tape)">
+      <b>Parcours vidéo Fight Art</b>
+      <p class="muted small" style="margin:4px 0 10px">Lutte + Luta Livre / grappling, ceinture blanche → violette : 30 étapes rangées par position, chacune avec une vidéo gratuite d'un grand pédagogue, une fiche de cours illustrée et les transitions. Libre d'accès pour tout le club.</p>
+      <button class="btn tape-btn block" data-parcours>Ouvrir le parcours</button>
+    </section>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Les vidéos choisies par le coach. Pour chacune : regarde, isole le geste en drill, teste-le en sparring à thème, puis en sparring libre, et note ce qui a marché.</p>
       <div data-links><p class="muted small">${sync.connected() && !window.FAP_PREVIEW ? "Chargement…" : "Relie ton téléphone à l'équipe pour voir la vidéothèque."}</p></div>
       ${sync.role() === "coach" ? `<button class="btn ghost block" data-addlink style="margin-top:10px">${icon("plus")} Ajouter une vidéo</button>` : ""}
-    </section>
-
-    <h2 class="h-sec">Parcours Fight Art</h2>
-    <section class="panel">
-      <p class="muted small" style="margin-bottom:10px">Lutte + Luta Livre / grappling, de la ceinture blanche à la violette : les instructionals de référence choisis par le coach, rangés par position, avec les transitions et les semaines du programme.</p>
-      <button class="btn tape-btn block" data-parcours>Ouvrir le parcours</button>
     </section>
 
     ${sync.role() === "coach" ? `<h2 class="h-sec">Ma formation vidéo</h2>
