@@ -2,6 +2,7 @@ import { store, uid, todayKey } from "../store.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { openLocalVideos } from "./localvids.js";
 import { openParcoursClub } from "./parcours-club.js";
+import { openParcoursMMA } from "./parcours-mma.js";
 import { esc, icon, openSheet, closeSheet, toast, segBar, bindSeg } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
@@ -110,6 +111,11 @@ export function renderAcademy(el, ctx) {
       <p class="muted small" style="margin:4px 0 10px">Les meilleures vidéos gratuites des références (Renier, Danaher, Lachlan Giles, Gordon Ryan, Ryan Hall, John Smith), en français ou sous-titrées, de la ceinture blanche à la violette, avec les points importants.</p>
       <button class="btn tape-btn block" data-parcours>Ouvrir le parcours</button>
     </section>
+    <section class="panel" style="margin-bottom:12px;border-left:4px solid #F25F5C">
+      <b>Cursus vidéo MMA</b>
+      <p class="muted small" style="margin:4px 0 10px">Les références du MMA (Jeff Chan / MMA Shredded, Georges St-Pierre, Firas Zahabi, Shane Fazen…) et des pros français, en français ou sous-titrées : par niveau du programme, par catégorie et par situation, reliées aux techniques et combinés de l'appli.</p>
+      <button class="btn tape-btn block" data-mmacursus>Ouvrir le cursus MMA</button>
+    </section>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Les vidéos choisies par le coach. Pour chacune : regarde, isole le geste en drill, teste-le en sparring à thème, puis en sparring libre, et note ce qui a marché.</p>
       <div data-links><p class="muted small">${sync.connected() && !window.FAP_PREVIEW ? "Chargement…" : "Relie ton téléphone à l'équipe pour voir la vidéothèque."}</p></div>
@@ -162,6 +168,7 @@ export function renderAcademy(el, ctx) {
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
   el.querySelector("[data-localvids]")?.addEventListener("click", openLocalVideos);
   el.querySelector("[data-parcours]")?.addEventListener("click", openParcoursClub);
+  el.querySelector("[data-mmacursus]")?.addEventListener("click", openParcoursMMA);
   el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));
   drawLinks(el, ctx);
   el.querySelector("[data-newscout]").addEventListener("click", () => editScout(null, ctx.refresh));

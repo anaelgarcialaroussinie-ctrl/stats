@@ -1,5 +1,5 @@
 // Cache hors ligne : l'appli s'ouvre même sans réseau.
-const VERSION = "fap-v62";
+const VERSION = "fap-v63";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/app.css", "./fonts/archivo.ttf",
   "./js/app.js", "./js/store.js", "./js/engine.js", "./js/data.js", "./js/ui.js", "./js/off.js", "./js/sync.js", "./js/config.js",
@@ -30,6 +30,7 @@ const ASSETS = [
   "./js/vid-classify.js",
   "./js/parcours.js",
   "./js/views/parcours-club.js",
+  "./js/views/parcours-mma.js",
   "./js/views/programs-view.js",
   "./js/views/video.js",
   "./icons/logo.png", "./js/academy-data.js", "./js/views/coach.js", "./js/views/sessions.js", "./js/views/timer.js",
