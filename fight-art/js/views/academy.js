@@ -107,7 +107,7 @@ export function renderAcademy(el, ctx) {
     <h2 class="h-sec">Vidéothèque du club</h2>
     <section class="panel" style="margin-bottom:12px;border-left:4px solid var(--tape)">
       <b>Parcours Fight Art</b>
-      <p class="muted small" style="margin:4px 0 10px">Les vidéos choisies par le coach, de la ceinture blanche à la violette, avec les points importants de chacune.</p>
+      <p class="muted small" style="margin:4px 0 10px">Les vidéos techniques de Nicolas Renier, en français ou sous-titrées en français, de la ceinture blanche à la violette, avec les points importants de chacune.</p>
       <button class="btn tape-btn block" data-parcours>Ouvrir le parcours</button>
     </section>
     <section class="panel">
@@ -300,7 +300,7 @@ async function drawLinks(el, ctx) {
   if (!box || !sync.connected() || window.FAP_PREVIEW) return;
   const paint = (all) => {
     if (!el.contains(box)) return;
-    const rows = all.filter((r) => !String(r.topic || "").startsWith("parcours:"));
+    const rows = all.filter((r) => !String(r.topic || "").startsWith("parcours"));
     if (!rows.length) { box.innerHTML = `<p class="muted small">Aucune vidéo pour l'instant.</p>`; return; }
     const topics = [...new Set(rows.map((r) => r.topic))];
     const coach = sync.role() === "coach";
