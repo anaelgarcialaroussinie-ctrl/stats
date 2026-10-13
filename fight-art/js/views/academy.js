@@ -299,8 +299,9 @@ const LINK_TOPICS = ["MMA", "Frappe", "Lutte", "Sol", "Luta Livre", "Drill solo"
 async function drawLinks(el, ctx) {
   const box = el.querySelector("[data-links]");
   if (!box || !sync.connected() || window.FAP_PREVIEW) return;
-  const paint = (rows) => {
+  const paint = (all) => {
     if (!el.contains(box)) return;
+    const rows = all.filter((r) => !String(r.topic || "").startsWith("parcours:")); // les vidéos du parcours s'affichent dans le parcours
     if (!rows.length) { box.innerHTML = `<p class="muted small">Aucune vidéo pour l'instant.</p>`; return; }
     const topics = [...new Set(rows.map((r) => r.topic))];
     const coach = sync.role() === "coach";
