@@ -1,6 +1,7 @@
 import { store, uid, todayKey } from "../store.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { openLocalVideos } from "./localvids.js";
+import { openParcoursPublic } from "./parcours-view.js";
 import { esc, icon, openSheet, closeSheet, toast, segBar, bindSeg } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
@@ -110,6 +111,12 @@ export function renderAcademy(el, ctx) {
       ${sync.role() === "coach" ? `<button class="btn ghost block" data-addlink style="margin-top:10px">${icon("plus")} Ajouter une vidéo</button>` : ""}
     </section>
 
+    <h2 class="h-sec">Parcours Fight Art</h2>
+    <section class="panel">
+      <p class="muted small" style="margin-bottom:10px">Lutte + Luta Livre / grappling, de la ceinture blanche à la violette : les instructionals de référence choisis par le coach, rangés par position, avec les transitions et les semaines du programme.</p>
+      <button class="btn tape-btn block" data-parcours>Ouvrir le parcours</button>
+    </section>
+
     ${sync.role() === "coach" ? `<h2 class="h-sec">Ma formation vidéo</h2>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Certification Luta Livre de Nicolas Renier : les 85 vidéos rangées par module, avec tes notes. Visible par toi seul.</p>
@@ -155,6 +162,7 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-model]").forEach((li) => li.addEventListener("click", () => openModel(li.dataset.model, trap, ctx.refresh)));
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
   el.querySelector("[data-localvids]")?.addEventListener("click", openLocalVideos);
+  el.querySelector("[data-parcours]")?.addEventListener("click", openParcoursPublic);
   el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));
   drawLinks(el, ctx);
   el.querySelector("[data-newscout]").addEventListener("click", () => editScout(null, ctx.refresh));
