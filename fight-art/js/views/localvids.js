@@ -3,8 +3,6 @@
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { store } from "../store.js";
-import { positionIllus } from "../parcours-illus.js";
-import { ficheCours } from "../parcours-fiches.js";
 import { PARCOURS_INTRO, PARCOURS_BELTS, POSITIONS, resolveParcours } from "../parcours.js";
 import { DISCIPLINES, classify, translateTitle, themeOf, themesOf, beltOf, BELTS, BELT_DISCS } from "../vid-classify.js";
 
@@ -420,10 +418,8 @@ export function openLocalVideos() {
         ${posList.map((p) => `<section style="margin:16px 0 6px">
           <div class="row between" style="gap:8px;align-items:baseline"><h3 class="sys-h" style="margin:0">${esc(p.label)}</h3><span class="tiny muted">programme : ${esc(p.sys)}</span></div>
           <p class="tiny muted" style="margin:2px 0 6px">${esc(p.note)}</p>
-        ${positionIllus(p.id)}
           ${p.to.length ? `<div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="tiny muted">Transitions →</span>${p.to.map(([id, how]) => `<button class="chip" data-ppos="${id}" style="font-size:12px">${esc(posName(id))} <span class="muted">(${esc(how)})</span></button>`).join("")}</div>` : ""}
           ${vis.filter((x) => x.pos === p.id).map((x) => `<div style="margin:8px 0 2px"><div class="row" style="gap:8px;align-items:baseline"><span style="width:28px;height:9px;border-radius:2px;background:${beltCol(x.belt)};border:1px solid #555;flex:none;transform:translateY(-1px)" title="Ceinture ${esc(x.belt)}"></span><span style="min-width:0"><b class="small">${esc(x.title)}</b> <span class="tiny muted">· ${esc(x.author)} · semaines ${esc(x.w)}</span><span class="tiny" style="display:block;margin-top:2px">${esc(x.why)}</span></span></div>
-            <details style="margin:4px 0 0 36px"><summary class="tiny" style="font-weight:800;cursor:pointer;color:var(--tape)">Fiche de cours</summary>${ficheCours(x, esc)}</details>
             ${x.g ? card(x.g) : `<p class="tiny muted" style="margin:4px 0 0 36px">Pas trouvé sur ton disque.</p>`}</div>`).join("")}
         </section>`).join("")}`;
       lastGroups = found.map((x) => x.g);

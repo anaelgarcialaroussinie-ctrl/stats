@@ -1,7 +1,6 @@
 import { store, uid, todayKey } from "../store.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { openLocalVideos } from "./localvids.js";
-import { openParcoursPublic } from "./parcours-view.js";
 import { esc, icon, openSheet, closeSheet, toast, segBar, bindSeg } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
@@ -105,11 +104,6 @@ export function renderAcademy(el, ctx) {
 
     </div><div data-seg="videos">
     <h2 class="h-sec">Vidéothèque du club</h2>
-    <section class="panel" style="margin-bottom:12px;border-left:4px solid var(--tape)">
-      <b>Parcours vidéo Fight Art</b>
-      <p class="muted small" style="margin:4px 0 10px">Lutte + Luta Livre / grappling, ceinture blanche → violette : 30 étapes rangées par position, chacune avec une vidéo gratuite d'un grand pédagogue, une fiche de cours illustrée et les transitions. Libre d'accès pour tout le club.</p>
-      <button class="btn tape-btn block" data-parcours>Ouvrir le parcours</button>
-    </section>
     <section class="panel">
       <p class="muted small" style="margin-bottom:10px">Les vidéos choisies par le coach. Pour chacune : regarde, isole le geste en drill, teste-le en sparring à thème, puis en sparring libre, et note ce qui a marché.</p>
       <div data-links><p class="muted small">${sync.connected() && !window.FAP_PREVIEW ? "Chargement…" : "Relie ton téléphone à l'équipe pour voir la vidéothèque."}</p></div>
@@ -161,7 +155,6 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-model]").forEach((li) => li.addEventListener("click", () => openModel(li.dataset.model, trap, ctx.refresh)));
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
   el.querySelector("[data-localvids]")?.addEventListener("click", openLocalVideos);
-  el.querySelector("[data-parcours]")?.addEventListener("click", openParcoursPublic);
   el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));
   drawLinks(el, ctx);
   el.querySelector("[data-newscout]").addEventListener("click", () => editScout(null, ctx.refresh));
@@ -300,7 +293,7 @@ async function drawLinks(el, ctx) {
   if (!box || !sync.connected() || window.FAP_PREVIEW) return;
   const paint = (all) => {
     if (!el.contains(box)) return;
-    const rows = all.filter((r) => !String(r.topic || "").startsWith("parcours:")); // les vidéos du parcours s'affichent dans le parcours
+    const rows = all.filter((r) => !String(r.topic || "").startsWith("parcours:"));
     if (!rows.length) { box.innerHTML = `<p class="muted small">Aucune vidéo pour l'instant.</p>`; return; }
     const topics = [...new Set(rows.map((r) => r.topic))];
     const coach = sync.role() === "coach";
