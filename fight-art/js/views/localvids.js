@@ -3,7 +3,7 @@
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { store } from "../store.js";
-import { PARCOURS_INTRO, PARCOURS_BELTS, resolveParcours } from "../parcours.js";
+import { PARCOURS_INTRO, PARCOURS_BELTS, POSITIONS, resolveParcours } from "../parcours.js";
 import { DISCIPLINES, classify, translateTitle, themeOf, themesOf, beltOf, BELTS, BELT_DISCS } from "../vid-classify.js";
 
 const VIDEO = /\.(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|flv|ts)$/i;
@@ -295,6 +295,7 @@ export function openLocalVideos() {
 
   const okFor = (f) => okCache[f.path] ?? okCache[`dir:${f.folder}`];
   let view = "parcours"; // parcours | all | drive
+  let pBelt = "", pPos = "";
   const draw = () => {
     let groups;
     if (phone) {
@@ -357,22 +358,28 @@ export function openLocalVideos() {
       const all = (phone ? groupsFromCatalog() : buildGroups(files)).map((g) => classifyGroup(g, over));
       const steps = resolveParcours(all);
       const found = steps.filter((x) => x.g);
-      const allIn = found.every((x) => sel[x.g.root]);
-      const discCol = (id) => DISCIPLINES.find((d) => d.id === id)?.color || "#888";
+      const allIn = found.length && found.every((x) => sel[x.g.root]);
+      const beltCol = (id) => BELTS.find((x) => x.id === id)?.color || "#888";
+      const vis = steps.filter((x) => (!pBelt || x.belt === pBelt) && (!pPos || x.pos === pPos));
+      const posList = POSITIONS.filter((p) => vis.some((x) => x.pos === p.id));
+      const posName = (id) => POSITIONS.find((p) => p.id === id)?.label || id;
       body.innerHTML = intro + chipsRow + `
         <section class="panel" style="padding:12px;margin-bottom:10px">
-          <b class="small">Parcours lutte + Luta Livre / grappling · blanche → violette</b>
-          <p class="tiny muted" style="margin:4px 0 8px">${esc(PARCOURS_INTRO)} Les semaines indiquées sont celles du programme Luta Livre du club.</p>
-          <p class="small" style="margin:0 0 8px"><b>${found.length}</b> étapes sur ${steps.length} trouvées sur ton disque${found.length ? ` · ${found.filter((x) => sel[x.g.root]).length} dans ta sélection Drive` : ""}</p>
-          ${!phone && found.length ? `<button class="btn tape-btn small" data-parcsel ${allIn ? "disabled" : ""}>${allIn ? "Tout le parcours est dans ta sélection Drive" : "Mettre tout le parcours dans ma sélection Drive"}</button>` : ""}
+          <b class="small">Parcours lutte + Luta Livre / grappling no-gi</b>
+          <p class="tiny muted" style="margin:4px 0 8px">${esc(PARCOURS_INTRO)}</p>
+          <p class="tiny" style="margin:0 0 8px">Danaher · Lachlan Giles · Gordon Ryan · Ryan Hall · John Smith · Nicolas Renier (Luta Livre) — <b>${found.length}/${steps.length}</b> trouvés sur ton disque</p>
+          ${!phone && found.length ? `<button class="btn tape-btn small" data-parcsel ${allIn ? "disabled" : ""}>${allIn ? "Tout le parcours est dans ta sélection Drive" : "Mettre le parcours dans ma sélection Drive"}</button>` : ""}
         </section>
-        ${PARCOURS_BELTS.map((b) => {
-          const bb = BELTS.find((x) => x.id === b.id);
-          return `<div class="row" style="gap:8px;margin:18px 0 4px;align-items:center"><span style="width:40px;height:12px;border-radius:3px;background:${bb.color};border:1px solid #555;flex:none"></span><h3 class="sys-h" style="margin:0">${esc(b.label)}</h3></div>
-          <p class="tiny muted" style="margin:0 0 8px">${esc(b.goal)}</p>
-          ${steps.filter((x) => x.belt === b.id).map((x) => `<div style="margin:10px 0 2px"><div class="row" style="gap:8px;align-items:baseline"><b style="color:var(--tape);min-width:22px">${x.n}.</b><span style="min-width:0"><b class="small">${esc(x.title)}</b> <span class="tiny muted">· ${esc(x.author)}</span><span class="tiny" style="display:block;color:var(--muted)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${discCol(x.disc)};margin-right:5px"></span>${x.disc === "lutte" ? "Lutte" : x.disc === "luta" ? "Luta Livre" : "Grappling no-gi"} · programme : ${esc(x.sys)} · semaines ${esc(x.w)}</span><span class="tiny" style="display:block;margin-top:2px">${esc(x.why)}</span></span></div>
-            ${x.g ? card(x.g) : `<p class="tiny muted" style="margin:4px 0 0 30px">Pas trouvé sur ton disque.</p>`}</div>`).join("")}`;
-        }).join("")}`;
+        <div class="chips" style="margin-bottom:6px"><button class="chip" data-pbelt="" aria-pressed="${!pBelt}">Toutes ceintures</button>${PARCOURS_BELTS.map((b) => `<button class="chip" data-pbelt="${b.id}" aria-pressed="${pBelt === b.id}"><span style="display:inline-block;width:14px;height:6px;border-radius:2px;background:${beltCol(b.id)};border:1px solid #555;margin-right:6px"></span>${esc(b.label)} · ${steps.filter((x) => x.belt === b.id && (!pPos || x.pos === pPos)).length}</button>`).join("")}</div>
+        <div class="chips" style="margin-bottom:10px"><button class="chip" data-ppos="" aria-pressed="${!pPos}">Toutes positions</button>${POSITIONS.filter((p) => steps.some((x) => x.pos === p.id && (!pBelt || x.belt === pBelt))).map((p) => `<button class="chip" data-ppos="${p.id}" aria-pressed="${pPos === p.id}">${esc(p.label)}</button>`).join("")}</div>
+        ${pBelt ? `<p class="tiny muted" style="margin:0 0 8px">Ceinture ${esc(PARCOURS_BELTS.find((b) => b.id === pBelt).label.toLowerCase())} : ${esc(PARCOURS_BELTS.find((b) => b.id === pBelt).goal)}</p>` : ""}
+        ${posList.map((p) => `<section style="margin:16px 0 6px">
+          <div class="row between" style="gap:8px;align-items:baseline"><h3 class="sys-h" style="margin:0">${esc(p.label)}</h3><span class="tiny muted">programme : ${esc(p.sys)}</span></div>
+          <p class="tiny muted" style="margin:2px 0 6px">${esc(p.note)}</p>
+          ${p.to.length ? `<div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px"><span class="tiny muted">Transitions →</span>${p.to.map(([id, how]) => `<button class="chip" data-ppos="${id}" style="font-size:12px">${esc(posName(id))} <span class="muted">(${esc(how)})</span></button>`).join("")}</div>` : ""}
+          ${vis.filter((x) => x.pos === p.id).map((x) => `<div style="margin:8px 0 2px"><div class="row" style="gap:8px;align-items:baseline"><span style="width:28px;height:9px;border-radius:2px;background:${beltCol(x.belt)};border:1px solid #555;flex:none;transform:translateY(-1px)" title="Ceinture ${esc(x.belt)}"></span><span style="min-width:0"><b class="small">${esc(x.title)}</b> <span class="tiny muted">· ${esc(x.author)} · semaines ${esc(x.w)}</span><span class="tiny" style="display:block;margin-top:2px">${esc(x.why)}</span></span></div>
+            ${x.g ? card(x.g) : `<p class="tiny muted" style="margin:4px 0 0 36px">Pas trouvé sur ton disque.</p>`}</div>`).join("")}
+        </section>`).join("")}`;
       lastGroups = found.map((x) => x.g);
       return;
     }
@@ -473,6 +480,10 @@ export function openLocalVideos() {
     }
     const ds = e.target.closest("[data-dsel]");
     if (ds) { e.preventDefault(); const r = ds.dataset.dsel; store.update((s) => { s.driveSel = { ...(s.driveSel || {}) }; if (s.driveSel[r]) delete s.driveSel[r]; else s.driveSel[r] = 1; }); draw(); return; }
+    const pb = e.target.closest("[data-pbelt]");
+    if (pb) { pBelt = pb.dataset.pbelt; draw(); return; }
+    const pp = e.target.closest("[data-ppos]");
+    if (pp) { pPos = pp.dataset.ppos; draw(); body.closest(".sheet")?.scrollTo?.({ top: 0 }); return; }
     const vw = e.target.closest("[data-view]");
     if (vw) { view = vw.dataset.view; draw(); return; }
     if (e.target.closest("[data-parcsel]")) {
