@@ -16,15 +16,17 @@ export const DISCIPLINES = [
 ];
 
 // score par discipline : les mots très spécifiques (nom de la discipline) comptent davantage
+// mots courts (« mma », « luta », « gi »…) : mot entier seulement (« dilemma », « evolution » ne comptent pas)
+const has = (t, k) => (k.trim().length <= 4 ? new RegExp(`(^|[^a-z0-9])${k.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`).test(t) : t.includes(k));
 export function classify(text) {
-  const t = ` ${norm(text)} `;
+  const t = ` ${norm(text).replace(/[._]+/g, " ")} `;
   let best = "autre", score = 0;
   for (const d of DISCIPLINES) {
     let s = 0;
-    for (const k of d.kw) if (t.includes(k)) s += k.length >= 5 ? 2 : 1;
+    for (const k of d.kw) if (has(t, k)) s += k.length >= 5 ? 2 : 1;
     if (d.id === "jjb") continue; // décidé après : kimono ou no-gi
-    if (t.includes(d.id === "grappling" ? "jiu" : d.id === "lutte" ? "wrestl" : d.id === "pieds" ? "muay" : `${d.id}`)) s += 3;
-    if (d.id === "mma" && (t.includes(" ufc") || t.includes("mma"))) s += 4;
+    if (has(t, d.id === "grappling" ? "jiu" : d.id === "lutte" ? "wrestl" : d.id === "pieds" ? "muay" : d.id === "luta" ? "luta livre" : `${d.id}`)) s += 3;
+    if (d.id === "mma" && (has(t, "ufc") || has(t, "mma"))) s += 4;
     if (s > score) { score = s; best = d.id; }
   }
   if (best === "grappling") {

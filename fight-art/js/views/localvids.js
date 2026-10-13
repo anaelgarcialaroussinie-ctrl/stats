@@ -3,6 +3,7 @@
 import { esc, icon, openSheet, toast } from "../ui.js";
 import { myNote, studyNotes } from "../study-notes.js";
 import { store } from "../store.js";
+import { PARCOURS_INTRO, PARCOURS_BELTS, resolveParcours } from "../parcours.js";
 import { DISCIPLINES, classify, translateTitle, themeOf, themesOf, beltOf, BELTS, BELT_DISCS } from "../vid-classify.js";
 
 const VIDEO = /\.(mp4|m4v|mov|webm|mkv|avi|wmv|mpg|mpeg|flv|ts)$/i;
@@ -293,7 +294,7 @@ export function openLocalVideos() {
   const intro = phone ? `<p class="small muted" style="margin-top:0">Sur téléphone : ton catalogue, tes fiches et tes notes. Les instructionals envoyés sur ton Google Drive (★) s'ouvrent avec « Regarder sur Drive ». Tout reste privé : personne d'autre ne voit ces liens.</p>` : `<p class="small muted" style="margin-top:0">Les vidéos de ton disque dur, rangées par discipline et lues directement sur ton ordinateur : rien n'est mis en ligne, elles restent visibles par toi seul. Sous chaque vidéo : sa fiche de travail (si elle est prête sur le disque) et tes notes.</p>`;
 
   const okFor = (f) => okCache[f.path] ?? okCache[`dir:${f.folder}`];
-  let view = "all"; // all | drive
+  let view = "parcours"; // parcours | all | drive
   const draw = () => {
     let groups;
     if (phone) {
@@ -342,24 +343,49 @@ export function openLocalVideos() {
       const l = linkOf(g.root) || (sel[g.root] ? driveSearch(g) : "");
       return `<div class="row" style="gap:8px;margin:6px 0;flex-wrap:wrap">${l ? `<a class="btn tape-btn small" href="${esc(l)}" target="_blank" rel="noopener">${icon("play")} Regarder sur Drive</a>` : ""}<button class="btn ghost small" data-flink="${esc(g.root)}">${linkOf(g.root) ? "Modifier le lien" : "Lien privé (Drive, Plex…)"}</button></div>`;
     };
+    const card = (g) => `<details class="sys-card" data-g="${esc(g.root)}" style="border-left:4px solid ${g.belt ? g.belt.color : g.disc.color}"${q && ordered.length < 6 ? " open" : ""}><summary><span class="row between" style="gap:8px;align-items:flex-start"><span style="min-width:0"><b>${esc(titleOf(g))}</b><span class="tiny muted" style="display:block">${esc(lastSeg(g.root))} · ${g.count} vidéo${g.count > 1 ? "s" : ""}${sizeCache[g.root] ? ` · ${fmtSize(sizeCache[g.root])}` : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></span><button class="icon-btn" data-dsel="${esc(g.root)}" title="Sélection Drive" aria-pressed="${Boolean(sel[g.root])}" style="flex:none;font-size:18px;color:${sel[g.root] ? "var(--tape)" : "var(--muted)"}">${sel[g.root] ? "★" : "☆"}</button></span></summary>
+        ${watch(g)}
+        ${classer(g)}
+        ${fiches[`${g.root}/__systeme__`] ? `<details style="margin:6px 0"><summary class="small" style="font-weight:700;cursor:pointer;color:var(--tape)">Fiche système de l'instructional</summary>${ficheHtml(fiches[`${g.root}/__systeme__`])}</details>` : ""}
+        ${g.items.length ? `<div data-items></div>` : `<p class="tiny muted">${g.count} vidéos : ouvre-les avec « Regarder sur Drive ».</p>`}
+      </details>`;
     const selN = Object.keys(sel).length;
     const allGroupsN = phone ? groups.length : buildGroups(files).length;
     const MAX = 250;
+    const chipsRow = `<div class="chips" style="margin-bottom:8px"><button class="chip" data-view="all" aria-pressed="${view === "all"}">Toute la vidéothèque · ${allGroupsN}</button><button class="chip" data-view="parcours" aria-pressed="${view === "parcours"}">🥋 Parcours Fight Art</button><button class="chip" data-view="drive" aria-pressed="${view === "drive"}">★ Ma sélection Drive · ${selN}</button></div>`;
+    if (view === "parcours") {
+      const all = (phone ? groupsFromCatalog() : buildGroups(files)).map((g) => classifyGroup(g, over));
+      const steps = resolveParcours(all);
+      const found = steps.filter((x) => x.g);
+      const allIn = found.every((x) => sel[x.g.root]);
+      const discCol = (id) => DISCIPLINES.find((d) => d.id === id)?.color || "#888";
+      body.innerHTML = intro + chipsRow + `
+        <section class="panel" style="padding:12px;margin-bottom:10px">
+          <b class="small">Parcours lutte + Luta Livre / grappling · blanche → violette</b>
+          <p class="tiny muted" style="margin:4px 0 8px">${esc(PARCOURS_INTRO)} Les semaines indiquées sont celles du programme Luta Livre du club.</p>
+          <p class="small" style="margin:0 0 8px"><b>${found.length}</b> étapes sur ${steps.length} trouvées sur ton disque${found.length ? ` · ${found.filter((x) => sel[x.g.root]).length} dans ta sélection Drive` : ""}</p>
+          ${!phone && found.length ? `<button class="btn tape-btn small" data-parcsel ${allIn ? "disabled" : ""}>${allIn ? "Tout le parcours est dans ta sélection Drive" : "Mettre tout le parcours dans ma sélection Drive"}</button>` : ""}
+        </section>
+        ${PARCOURS_BELTS.map((b) => {
+          const bb = BELTS.find((x) => x.id === b.id);
+          return `<div class="row" style="gap:8px;margin:18px 0 4px;align-items:center"><span style="width:40px;height:12px;border-radius:3px;background:${bb.color};border:1px solid #555;flex:none"></span><h3 class="sys-h" style="margin:0">${esc(b.label)}</h3></div>
+          <p class="tiny muted" style="margin:0 0 8px">${esc(b.goal)}</p>
+          ${steps.filter((x) => x.belt === b.id).map((x) => `<div style="margin:10px 0 2px"><div class="row" style="gap:8px;align-items:baseline"><b style="color:var(--tape);min-width:22px">${x.n}.</b><span style="min-width:0"><b class="small">${esc(x.title)}</b> <span class="tiny muted">· ${esc(x.author)}</span><span class="tiny" style="display:block;color:var(--muted)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${discCol(x.disc)};margin-right:5px"></span>${x.disc === "lutte" ? "Lutte" : x.disc === "luta" ? "Luta Livre" : "Grappling no-gi"} · programme : ${esc(x.sys)} · semaines ${esc(x.w)}</span><span class="tiny" style="display:block;margin-top:2px">${esc(x.why)}</span></span></div>
+            ${x.g ? card(x.g) : `<p class="tiny muted" style="margin:4px 0 0 30px">Pas trouvé sur ton disque.</p>`}</div>`).join("")}`;
+        }).join("")}`;
+      lastGroups = found.map((x) => x.g);
+      return;
+    }
     body.innerHTML = intro + `
       <div class="row" style="gap:8px;margin-bottom:10px"><input class="input" data-q placeholder="Rechercher (technique, auteur…)" value="${esc(q)}" style="flex:1">${phone ? "" : `<button class="btn ghost small" data-pick>Changer de dossier</button>`}</div>
-      <div class="chips" style="margin-bottom:8px"><button class="chip" data-view="all" aria-pressed="${view === "all"}">Toute la vidéothèque · ${allGroupsN}</button><button class="chip" data-view="drive" aria-pressed="${view === "drive"}">★ Ma sélection Drive · ${selN}</button></div>
+      <div class="chips" style="margin-bottom:8px"><button class="chip" data-view="all" aria-pressed="${view === "all"}">Toute la vidéothèque · ${allGroupsN}</button><button class="chip" data-view="parcours" aria-pressed="${view === "parcours"}">🥋 Parcours Fight Art</button><button class="chip" data-view="drive" aria-pressed="${view === "drive"}">★ Ma sélection Drive · ${selN}</button></div>
       ${phone ? "" : drivePanel(selN)}
       <div class="chips" style="margin-bottom:8px"><button class="chip" data-vdisc="" aria-pressed="${!disc}">Tout · ${groups.length}</button>${DISCIPLINES.filter((d) => counts[d.id]).map((d) => `<button class="chip" data-vdisc="${d.id}" aria-pressed="${disc === d.id}"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${d.color};border:1px solid #555;margin-right:6px"></span>${esc(d.label)} · ${counts[d.id]}</button>`).join("")}</div>
       ${subChips}
       ${phone ? "" : `<div class="row between" style="gap:8px;margin-bottom:6px;flex-wrap:wrap"><p class="tiny muted" style="margin:0"><b style="color:var(--tape)">${okN} lisibles sur PC</b> / ${files.length} vidéos${pending ? ` · <span data-okprog>test en cours…</span>` : ""}</p><div class="chips"><button class="chip" data-onlyok="1" aria-pressed="${onlyOk}">Lisibles sur PC</button><button class="chip" data-onlyok="0" aria-pressed="${!onlyOk}">Tout</button></div></div>`}
       <p class="tiny muted">${shown.length} instructional${shown.length > 1 ? "s" : ""}${shown.length > MAX ? ` (les ${MAX} premiers affichés : choisis une discipline, une ceinture ou cherche)` : ""} · titres traduits automatiquement</p>
       ${!ordered.length && !phone && onlyOk && pending ? `<p class="muted small">Test de lisibilité en cours… les vidéos lisibles apparaissent ici au fur et à mesure.</p>` : ""}
-      ${ordered.slice(0, MAX).map((g, gi) => `${head(g, gi)}<details class="sys-card" data-g="${esc(g.root)}" style="border-left:4px solid ${g.belt ? g.belt.color : g.disc.color}"${q && ordered.length < 6 ? " open" : ""}><summary><span class="row between" style="gap:8px;align-items:flex-start"><span style="min-width:0"><b>${esc(titleOf(g))}</b><span class="tiny muted" style="display:block">${esc(lastSeg(g.root))} · ${g.count} vidéo${g.count > 1 ? "s" : ""}${sizeCache[g.root] ? ` · ${fmtSize(sizeCache[g.root])}` : ""}${g.items.some((i) => notes[`local:${i.path}`]) ? " · notes" : ""}</span></span><button class="icon-btn" data-dsel="${esc(g.root)}" title="Sélection Drive" aria-pressed="${Boolean(sel[g.root])}" style="flex:none;font-size:18px;color:${sel[g.root] ? "var(--tape)" : "var(--muted)"}">${sel[g.root] ? "★" : "☆"}</button></span></summary>
-        ${watch(g)}
-        ${classer(g)}
-        ${fiches[`${g.root}/__systeme__`] ? `<details style="margin:6px 0"><summary class="small" style="font-weight:700;cursor:pointer;color:var(--tape)">Fiche système de l'instructional</summary>${ficheHtml(fiches[`${g.root}/__systeme__`])}</details>` : ""}
-        ${g.items.length ? `<div data-items></div>` : `<p class="tiny muted">${g.count} vidéos : ouvre-les avec « Regarder sur Drive ».</p>`}
-      </details>`).join("")}
+      ${ordered.slice(0, MAX).map((g, gi) => `${head(g, gi)}${card(g)}`).join("")}
       <button class="btn ghost block" data-export style="margin-top:14px">Exporter le catalogue (pour préparer les fiches avec Claude)</button>`;
     // les listes de vidéos ne sont construites qu'à l'ouverture d'un instructional (des milliers de vidéos)
     lastGroups = ordered;
@@ -449,6 +475,13 @@ export function openLocalVideos() {
     if (ds) { e.preventDefault(); const r = ds.dataset.dsel; store.update((s) => { s.driveSel = { ...(s.driveSel || {}) }; if (s.driveSel[r]) delete s.driveSel[r]; else s.driveSel[r] = 1; }); draw(); return; }
     const vw = e.target.closest("[data-view]");
     if (vw) { view = vw.dataset.view; draw(); return; }
+    if (e.target.closest("[data-parcsel]")) {
+      const over = store.get().localClass || {};
+      const steps = resolveParcours(buildGroups(files).map((g) => classifyGroup(g, over))).filter((x) => x.g);
+      store.update((s) => { s.driveSel = { ...(s.driveSel || {}) }; steps.forEach((x) => { s.driveSel[x.g.root] = 1; }); });
+      draw(); toast(`${steps.length} instructionals du parcours ajoutés : calcul de la taille…`);
+      await sizeAll(); return;
+    }
     if (e.target.closest("[data-dclear]")) { if (confirm("Vider toute la sélection Drive ?")) { store.update((s) => { s.driveSel = {}; }); draw(); } return; }
     if (e.target.closest("[data-dauto]")) {
       const over = store.get().localClass || {};
