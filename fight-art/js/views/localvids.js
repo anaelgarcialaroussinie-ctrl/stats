@@ -129,7 +129,7 @@ const linkOf = (r) => (store.get().localLinks || {})[r] || "";
 // ---- envoi sur Google Drive : sélection + script (rclone) qui range tout par discipline / ceinture / catégorie ----
 const DRIVE_ROOT = "Fight Art Videotheque";
 const BUDGET = 1.8e12; // ~1,8 To utilisables sur un abonnement 2 To
-const safe = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>:"/\\|?*%!^&]/g, " ").replace(/\s+/g, " ").trim();
+const safe = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>:"/\\|?*%!^&«»“”]/g, " ").replace(/\s+/g, " ").trim();
 export function drivePath(g) {
   const di = DISCIPLINES.indexOf(g.disc) + 1;
   const parts = [DRIVE_ROOT, `${String(di).padStart(2, "0")} ${safe(g.disc.label)}`];
@@ -203,6 +203,30 @@ function driveScript(groups) {
   });
   L.push("echo.", "echo Termine ! Tout est sur ton Google Drive, dossier \"" + DRIVE_ROOT + "\".", "pause", "exit /b",
     ":limite", "echo.", "echo Google limite l'envoi a 750 Go par jour : relance ce fichier demain, il reprendra ou il s'est arrete.", "pause", "exit /b", "");
+  return L.join("\r\n");
+}
+// copie du parcours dans un dossier (PC, clé USB, carte SD) rangé par position et ceinture, pour le mettre ensuite sur le téléphone
+function copyScript(steps) {
+  const L = ["@echo off", "chcp 65001 >nul", "title Fight Art - copie du parcours", "cd /d \"%~dp0\"", "set \"SRC=%~dp0\"",
+    "set \"DST=%USERPROFILE%\\Videos\\Fight Art Parcours\"",
+    "echo ============================================================",
+    "echo  Copie du Parcours Fight Art (" + steps.length + " instructionals)",
+    "echo  Dossier propose : %DST%",
+    "echo  Appuie sur Entree pour accepter, ou tape un autre dossier",
+    "echo  (exemple : E:\\Fight Art Parcours pour une cle USB ou une carte SD)",
+    "echo ============================================================",
+    "set \"CH=\"", "set /p \"CH=Dossier : \"", "if not \"%CH%\"==\"\" set \"DST=%CH%\"", "echo."];
+  steps.forEach((x, i) => {
+    const g = x.g;
+    const src = (g.root === "(racine)" ? "" : g.root.replace(/\//g, "\\")).replace(/%/g, "%%");
+    const pi = POSITIONS.findIndex((p) => p.id === x.pos);
+    const bi = PARCOURS_BELTS.findIndex((b) => b.id === x.belt);
+    const dst = `${String(pi).padStart(2, "0")} ${safe(POSITIONS[pi].label)}\\${bi + 1} ${safe(PARCOURS_BELTS[bi].label)} - ${safe(x.title)} (${safe(x.author)})`.replace(/%/g, "%%");
+    L.push(`echo [${i + 1}/${steps.length}] ${safe(x.title)}`);
+    L.push(`robocopy "%SRC%${src}" "%DST%\\${dst}"${g.loose ? "" : " /E"} /R:1 /W:1 /NJH /NJS /NDL`);
+    L.push("if errorlevel 8 echo    Probleme sur cette copie : place disponible ? disque branche ?");
+  });
+  L.push("echo.", "echo Termine ! Ouvre le dossier, puis copie-le sur ton telephone (cable USB) et regarde avec VLC.", "explorer \"%DST%\"", "pause", "");
   return L.join("\r\n");
 }
 function download(name, text, type = "application/octet-stream") {
@@ -368,8 +392,26 @@ export function openLocalVideos() {
           <b class="small">Parcours lutte + Luta Livre / grappling no-gi</b>
           <p class="tiny muted" style="margin:4px 0 8px">${esc(PARCOURS_INTRO)}</p>
           <p class="tiny" style="margin:0 0 8px">Danaher · Lachlan Giles · Gordon Ryan · Ryan Hall · John Smith · Nicolas Renier (Luta Livre) — <b>${found.length}/${steps.length}</b> trouvés sur ton disque</p>
-          ${!phone && found.length ? `<button class="btn tape-btn small" data-parcsel ${allIn ? "disabled" : ""}>${allIn ? "Tout le parcours est dans ta sélection Drive" : "Mettre le parcours dans ma sélection Drive"}</button>` : ""}
+          ${!phone && found.length ? `<button class="btn ghost small" data-parcsel ${allIn ? "disabled" : ""}>${allIn ? "Tout le parcours est dans ta sélection Drive" : "Mettre le parcours dans ma sélection Drive"}</button>` : ""}
         </section>
+        ${!phone && found.length ? (() => {
+          const want = found.filter((x) => !pBelt || x.belt === pBelt);
+          const known = want.filter((x) => sizeCache[x.g.root] !== undefined);
+          const tot = known.reduce((a, x) => a + sizeCache[x.g.root], 0);
+          return `<section class="panel" style="padding:12px;margin-bottom:10px">
+            <b class="small">Avoir le parcours sans le PC ni le disque dur</b>
+            <p class="tiny muted" style="margin:4px 0 8px">Copie les instructionals${pBelt ? ` de la ceinture ${esc(PARCOURS_BELTS.find((b) => b.id === pBelt).label.toLowerCase())}` : ""} dans un dossier rangé par position et ceinture, puis mets ce dossier sur ton téléphone (câble USB ou carte SD) et regarde avec VLC, sans internet. Choisis une ceinture au-dessus pour copier moins.</p>
+            <p class="small" style="margin:0 0 8px"><b>${want.length}</b> instructionals${known.length ? ` · ${known.length < want.length ? `taille connue pour ${known.length}/${want.length} : ` : ""}<b>${fmtSize(tot)}</b>` : ""}</p>
+            <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn ghost small" data-pcsize>Calculer la taille</button><button class="btn tape-btn small" data-pcopy>Télécharger le fichier de copie</button></div>
+            <details style="margin-top:8px"><summary class="tiny muted" style="cursor:pointer">Comment faire</summary><ol class="small" style="padding-left:18px;margin:6px 0">
+              <li>Calcule la taille et vérifie la place libre sur ton téléphone (Réglages → Stockage).</li>
+              <li>Télécharge le fichier de copie et mets-le dans le dossier choisi dans l'appli (« ${esc(root?.name || "ton dossier")} »), puis double-clique dessus.</li>
+              <li>Appuie sur Entrée : tout est copié dans « Vidéos\\Fight Art Parcours » sur le PC (ou tape la lettre de ta clé / carte SD).</li>
+              <li>Branche ton téléphone en USB, choisis « Transfert de fichiers », et glisse le dossier « Fight Art Parcours » dans le téléphone.</li>
+              <li>Sur le téléphone, installe VLC (gratuit) : il lit tous les formats, sans internet.</li>
+            </ol></details>
+          </section>`;
+        })() : ""}
         <div class="chips" style="margin-bottom:6px"><button class="chip" data-pbelt="" aria-pressed="${!pBelt}">Toutes ceintures</button>${PARCOURS_BELTS.map((b) => `<button class="chip" data-pbelt="${b.id}" aria-pressed="${pBelt === b.id}"><span style="display:inline-block;width:14px;height:6px;border-radius:2px;background:${beltCol(b.id)};border:1px solid #555;margin-right:6px"></span>${esc(b.label)} · ${steps.filter((x) => x.belt === b.id && (!pPos || x.pos === pPos)).length}</button>`).join("")}</div>
         <div class="chips" style="margin-bottom:10px"><button class="chip" data-ppos="" aria-pressed="${!pPos}">Toutes positions</button>${POSITIONS.filter((p) => steps.some((x) => x.pos === p.id && (!pBelt || x.belt === pBelt))).map((p) => `<button class="chip" data-ppos="${p.id}" aria-pressed="${pPos === p.id}">${esc(p.label)}</button>`).join("")}</div>
         ${pBelt ? `<p class="tiny muted" style="margin:0 0 8px">Ceinture ${esc(PARCOURS_BELTS.find((b) => b.id === pBelt).label.toLowerCase())} : ${esc(PARCOURS_BELTS.find((b) => b.id === pBelt).goal)}</p>` : ""}
@@ -486,6 +528,14 @@ export function openLocalVideos() {
     if (pp) { pPos = pp.dataset.ppos; draw(); body.closest(".sheet")?.scrollTo?.({ top: 0 }); return; }
     const vw = e.target.closest("[data-view]");
     if (vw) { view = vw.dataset.view; draw(); return; }
+    if (e.target.closest("[data-pcsize]") || e.target.closest("[data-pcopy]")) {
+      const over = store.get().localClass || {};
+      const steps = resolveParcours(buildGroups(files).map((g) => classifyGroup(g, over))).filter((x) => x.g && (!pBelt || x.belt === pBelt));
+      if (e.target.closest("[data-pcopy]")) { download("Copie-Parcours-Fight-Art.bat", copyScript(steps)); toast("Fichier de copie téléchargé : mets-le dans le dossier choisi, puis double-clique"); return; }
+      const btn = e.target.closest("[data-pcsize]"); let n = 0;
+      for (const x of steps) { await groupSize(x.g); n++; if (btn.isConnected) btn.textContent = `Calcul… ${n}/${steps.length}`; }
+      draw(); toast("Taille calculée"); return;
+    }
     if (e.target.closest("[data-parcsel]")) {
       const over = store.get().localClass || {};
       const steps = resolveParcours(buildGroups(files).map((g) => classifyGroup(g, over))).filter((x) => x.g);
