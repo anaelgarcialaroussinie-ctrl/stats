@@ -100,7 +100,7 @@ export async function openModel(name, onTrap, after) {
     <div class="row between" style="align-items:flex-start;gap:10px">
       <div><span class="badge tiny">${esc(f.wc)}</span> <span class="badge tiny">${esc(f.p)}</span>
         <div class="display num" style="font-size:34px;margin-top:6px">${w}-${l}${d ? "-" + d : ""}</div>
-        <div class="tiny muted">à l'UFC · ${f.nf} combats · dernier le ${esc(new Date(f.last).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }))}</div></div>
+        <div class="tiny muted">à l'UFC · ${f.nf} combat${f.nf > 1 ? "s" : ""} · dernier le ${esc(new Date(f.last).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }))}</div>${f.nf < 3 ? `<div class="tiny" style="color:#F5A524">Arrivé récemment à l'UFC : statistiques calculées sur peu de combats, à prendre comme une tendance. Son palmarès hors UFC n'est pas compté.</div>` : ""}</div>
       <button class="btn ${fav ? "ghost" : "tape-btn"} small" data-fav>${fav ? "Retirer de mes modèles" : "Ajouter à mes modèles"}</button>
     </div>
     <p class="small" style="margin-top:10px">${esc(f.st || "Garde inconnue")}${f.h ? ` · ${f.h} cm` : ""}${f.r ? ` · allonge ${f.r} cm` : ""}${me.height ? `<br><span class="muted">Toi : ${me.height} cm${me.reach ? ` · allonge ${me.reach} cm` : ""}</span>` : ""}</p>
@@ -168,7 +168,7 @@ export function openModelSearch(onTrap, after) {
       let list = db.f.filter((f) => (!wc || f.wc === wc) && (!q || norm(f.n).includes(q)));
       list = list.sort((x, y) => (q ? 0 : y.last.localeCompare(x.last)) || y.rec[0] - x.rec[0]).slice(0, 30);
       const favs = favorites();
-      body.querySelector("[data-res]").innerHTML = list.length ? `<ul class="list">${list.map((f) => `<li role="button" tabindex="0" data-open="${esc(f.n)}">${faceSlot(f.n)}<div style="min-width:0;flex:1"><div style="font-weight:700">${esc(f.n)}${favs.includes(f.n) ? ` <span class="insigne">Modèle</span>` : ""}</div><div class="meta">${esc(f.wc)} · ${f.rec[0]}-${f.rec[1]}${f.rec[2] ? "-" + f.rec[2] : ""} · ${esc(f.p)}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : `<p class="muted small">Aucun combattant trouvé (au moins 3 combats UFC).</p>`;
+      body.querySelector("[data-res]").innerHTML = list.length ? `<ul class="list">${list.map((f) => `<li role="button" tabindex="0" data-open="${esc(f.n)}">${faceSlot(f.n)}<div style="min-width:0;flex:1"><div style="font-weight:700">${esc(f.n)}${favs.includes(f.n) ? ` <span class="insigne">Modèle</span>` : ""}</div><div class="meta">${esc(f.wc)} · ${f.rec[0]}-${f.rec[1]}${f.rec[2] ? "-" + f.rec[2] : ""} · ${esc(f.p)}</div></div>${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>` : `<p class="muted small">Aucun combattant trouvé (combattants UFC avec au moins 3 combats, ou actifs ces 2 dernières années).</p>`;
       fillFaces(body.querySelector("[data-res]"));
     };
     body.querySelector("[data-q]").addEventListener("input", paint);

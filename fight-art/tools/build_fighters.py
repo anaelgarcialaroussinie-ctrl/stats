@@ -3,7 +3,8 @@
 Source : la base publique https://github.com/Greco1899/scrape_ufc_stats (rafraîchie chaque jour).
 Usage : python3 tools/build_fighters.py CHEMIN_DU_DEPOT_GRECO1899 [CHEMIN_DE_fighters.json]
 
-- Garde les combattants qui ont au moins 3 combats UFC.
+- Garde les combattants qui ont au moins 3 combats UFC, et ceux qui ont combattu à l'UFC
+  ces 2 dernières années (nouveaux venus comme Yaroslav Amosov), même avec 1 ou 2 combats.
 - Recalcule bilan, finitions, gabarit et statistiques à partir de tous leurs combats.
 - Garde le profil de style déjà attribué ; un nouveau combattant reçoit le profil
   dont il est le plus proche (centres des profils existants).
@@ -15,6 +16,7 @@ import pandas as pd
 REPO = sys.argv[1]
 OUT = sys.argv[2] if len(sys.argv) > 2 else "data/fighters.json"
 MIN_FIGHTS = 3
+ACTIVE_YEARS = 2  # un combattant récent (dernier combat UFC il y a moins de 2 ans) est gardé même avec 1 ou 2 combats
 
 WC = [("women's strawweight", "Pailles (F)"), ("women's flyweight", "Mouches (F)"), ("women's bantamweight", "Coqs (F)"),
       ("women's featherweight", "Plumes (F)"), ("light heavyweight", "Mi-lourds"), ("heavyweight", "Lourds"),
@@ -124,8 +126,10 @@ for r in res.to_dict("records"):
 old = json.load(open(OUT))
 old_p = {x["n"]: x["p"] for x in old["f"]}
 rows = []
+recent = res.d.max() - pd.DateOffset(years=ACTIVE_YEARS)
 for name, fights in per.items():
-    if len(fights) < MIN_FIGHTS: continue
+    lastd = max((f["d"] for f in fights if pd.notna(f["d"])), default=pd.NaT)
+    if len(fights) < MIN_FIGHTS and not (pd.notna(lastd) and lastd >= recent): continue
     fights.sort(key=lambda f: f["d"] if pd.notna(f["d"]) else pd.Timestamp(0))
     W = sum(f["out"] == "W" for f in fights); L = sum(f["out"] == "L" for f in fights); D = sum(f["out"] == "D" for f in fights)
     wins = [f for f in fights if f["out"] == "W"]
