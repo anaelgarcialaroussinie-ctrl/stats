@@ -250,7 +250,7 @@ function installHint(force = false) {
     <button class="btn tape-btn block" data-ok style="margin-top:14px">Compris</button>`, { onMount: (b) => b.querySelector("[data-ok]").addEventListener("click", closeSheet) });
 }
 
-const APP_VERSION = "67";
+const APP_VERSION = "68";
 if ("serviceWorker" in navigator && location.protocol === "https:") {
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});
@@ -263,6 +263,7 @@ sync.pull().then(() => { if (store.get().profile) render(true); });
 window.FAP_BOOTED = true;
 let lastInbox = 0;
 sync.onChange(() => { const n = sync.cachedInbox().length; if (n !== lastInbox && current === "today" && !document.getElementById("sheet-root").innerHTML && store.get().profile) { lastInbox = n; render(true); } });
+document.addEventListener("fap:refresh", () => render(true));
 render();
 // rappels programmés : quand l'appli est ouverte, elle sonne elle-même à l'heure prévue
 startLocalReminders((title, body) => toast(body ? `${title} · ${body}` : title));

@@ -552,3 +552,10 @@ table.stats td.num { white-space: nowrap; }
 .refvid-frame { grid-column: 1 / -1; position: relative; padding-top: 56.25%; border-radius: 10px; overflow: hidden; background: #000; }
 .refvid-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .refvid.playing { grid-template-columns: 1fr; }
+.role-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-right: 4px; border: 1px solid var(--line); }
+.role-pill.r-off { color: var(--tape); border-color: color-mix(in srgb, var(--tape) 50%, transparent); }
+.role-pill.r-def { color: #6FB7FF; border-color: #6FB7FF66; }
+.ref-tag { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+.ref-link { all: unset; cursor: pointer; text-decoration: underline; text-decoration-color: var(--tape); text-underline-offset: 3px; }
+.ref-link .ref-tag { text-decoration: none; }
+.jeu-method { border-left: 4px solid var(--tape); }

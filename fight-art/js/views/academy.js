@@ -14,6 +14,7 @@ import { openDiscussion } from "./discussion.js";
 import { openModel, openModelSearch, faceSlot, fillFaces } from "./models.js";
 import { openStyleLab, openStyle, programWeek, openProgram } from "./stylelab.js";
 import { openNote, openNoteRead, openNotesList, noteCard } from "./notes.js";
+import { ROLES, roleLabel, noteRole, comboRole, matchRole, systemsFrom, systemsUsing, refName, refTag } from "../game.js";
 
 const moveLabel = (id) => MOVES.find((m) => m.id === id)?.label || id;
 const moveName = (id) => MOVES.find((m) => m.id === id)?.name || id;
@@ -30,28 +31,44 @@ const MODULES = [
 
 export function renderAcademy(el, ctx) {
   const st = store.get();
-  const combos = st.combos || [];
+  let jr = "all"; try { jr = localStorage.getItem("fap:jeuRole") || "all"; } catch {}
+  const allCombos = st.combos || [];
+  const combos = allCombos.filter((c) => matchRole(comboRole(c), jr));
+  const myNotes = (st.notes || []).filter((n) => matchRole(noteRole(n), jr));
   const scouts = st.scouting || [];
-  const systems = st.systems || [];
+  const allSystems = st.systems || [];
+  const systems = allSystems.filter((x) => jr === "all" || x.type === jr);
+  const sysCount = (ref) => systemsFrom(ref).length;
   const seg = segBar("academy", [["jeu", "Mon jeu"], ["comprendre", "Comprendre"], ["modeles", "Modèles"], ["videos", "Vidéos"]], "jeu");
 
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 10px">Academy</h1>
     ${seg.html}
     <div data-seg="jeu">
+    <section class="panel jeu-method" style="margin-top:12px">
+      <b>Construire son jeu, pas à pas</b>
+      <ol class="plan-steps" style="margin:6px 0 0">
+        <li class="small"><b>Note</b> une technique (fiche) ou un enchaînement (combo), offensif ou défensif.</li>
+        <li class="small"><b>Décortique</b> : quels problèmes ça t'amène ? ses réactions, ce qui coince.</li>
+        <li class="small"><b>Règle</b> chaque problème avec une technique, une fiche ou un combo (ou crée la fiche au passage).</li>
+        <li class="small"><b>Ton système est complet</b> : drille-le, puis teste-le en sparring.</li>
+      </ol>
+    </section>
+    <div class="chips" style="margin-top:12px" role="group" aria-label="Classer">${[["all", "Tout mon jeu"], ...ROLES.map((r) => [r.id, r.label])].map(([id, l]) => `<button class="chip" data-jr="${id}" aria-pressed="${jr === id}">${esc(l)}</button>`).join("")}</div>
     <h2 class="h-sec">Mes fiches techniques</h2>
     <section class="panel">
-      ${(st.notes || []).length ? `<ul class="list">${[...st.notes].sort((a, b) => (b.updatedAt || b.date || "").localeCompare(a.updatedAt || a.date || "")).slice(0, 3).map((n) => `<li role="button" tabindex="0" data-note="${n.id}">${noteCard(n)}${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>
-        ${st.notes.length > 3 ? `<button class="btn ghost block small" data-notes style="margin-top:8px">Voir mes ${st.notes.length} fiches</button>` : ""}` : `<p class="muted small" style="margin:0 0 4px">Après un cours ou une vidéo : les points importants d'une technique, ton ressenti, tes problèmes et comment les régler. Tout est gardé, et ton coach peut t'aider.</p>`}
+      ${myNotes.length ? `<ul class="list">${[...myNotes].sort((a, b) => (b.updatedAt || b.date || "").localeCompare(a.updatedAt || a.date || "")).slice(0, 4).map((n) => `<li role="button" tabindex="0" data-note="${n.id}">${noteCard(n)}${icon("back", 'style="width:20px;height:20px;transform:scaleX(-1);flex:none"')}</li>`).join("")}</ul>
+        ${(st.notes || []).length > 4 || jr !== "all" ? `<button class="btn ghost block small" data-notes style="margin-top:8px">Toutes mes fiches, par catégorie (${(st.notes || []).length})</button>` : ""}` : (st.notes || []).length ? `<p class="muted small">Aucune fiche ${jr === "def" ? "défensive" : "offensive"} pour l'instant.</p>` : `<p class="muted small" style="margin:0 0 4px">Après un cours ou une vidéo : les points importants d'une technique, ton ressenti, tes problèmes et comment les régler. Tout est gardé, et ton coach peut t'aider.</p>`}
       <button class="btn tape-btn block" data-newnote style="margin-top:12px">${icon("plus")} Nouvelle fiche</button>
     </section>
 
     <h2 class="h-sec">Mes combos fétiches</h2>
     <section class="panel">
-      ${combos.length ? `<ul class="list">${combos.map((c) => `<li>
-        <div style="min-width:0"><div style="font-weight:700">${esc(c.name)}</div>${seqHtml(c.seq)}${c.when ? `<div class="meta" style="margin-top:4px">${esc(c.when)}</div>` : ""}</div>
+      ${combos.length ? `<ul class="list">${combos.map((c) => { const ns = sysCount(`c:${c.id}`); return `<li style="flex-wrap:wrap">
+        <div style="min-width:0;flex:1"><div style="font-weight:700">${esc(c.name)}</div>${seqHtml(c.seq)}<div class="meta" style="margin-top:4px"><span class="role-pill r-${comboRole(c)}">${esc(roleLabel(comboRole(c)))}</span>${c.when ? " " + esc(c.when) : ""}</div></div>
         <div class="row" style="gap:6px;flex:none"><button class="icon-btn" data-drill="${c.id}" aria-label="Driller ${esc(c.name)}">${icon("play")}</button><button class="icon-btn" data-edit="${c.id}" aria-label="Modifier">${icon("edit")}</button></div>
-      </li>`).join("")}</ul>` : `<p class="muted small" style="margin:0 0 4px">Note les enchaînements qui marchent pour toi, puis drille-les au minuteur. Ton coach les voit aussi.</p>`}
+        <button class="btn small ${ns ? "ghost" : ""}" data-decort="${c.id}" style="width:100%;margin-top:8px">${ns ? `Son système : ${systemsFrom(`c:${c.id}`)[0].branches.length} problème(s) réglé(s)` : "Décortiquer : problèmes et solutions"}</button>
+      </li>`; }).join("")}</ul>` : allCombos.length ? `<p class="muted small">Aucun combo ${jr === "def" ? "défensif" : "offensif"} pour l'instant.</p>` : `<p class="muted small" style="margin:0 0 4px">Note les enchaînements qui marchent pour toi, puis drille-les au minuteur. Ton coach les voit aussi.</p>`}
       <button class="btn tape-btn block" data-newcombo style="margin-top:12px">${icon("plus")} Noter un combo</button>
     </section>
 
@@ -90,10 +107,10 @@ export function renderAcademy(el, ctx) {
     </div><div data-seg="jeu2">
     <h2 class="h-sec">Mes systèmes</h2>
     <section class="panel">
-      <p class="muted small" style="margin-bottom:10px">Un système, c'est ton plan à l'avance : <b>je fais ceci ; s'il réagit comme ça, je fais cela.</b> Pour chaque technique, regarde d'abord ce qu'elle ouvre et ce qu'elle risque, puis crée ton système.</p>
+      <p class="muted small" style="margin-bottom:10px">Un système, c'est ton plan à l'avance : <b>je lance ceci ; s'il réagit comme ça, je règle avec cela.</b> Le point de départ peut être une technique, une de tes fiches ou un de tes combos ; chaque problème se règle avec une technique, une fiche ou un combo.</p>
       <button class="btn tape-btn block" data-explore>${icon("search")} Risques et ouvertures des techniques</button>
-      ${systems.length ? `<div class="stack" style="margin-top:12px">${systems.map((x) => `<details class="sys-card"><summary><span><b>${esc(x.name)}</b><span class="tiny muted" style="display:block">${x.type === "off" ? "Attaque" : "Défense"} · ${x.branches.length} scénario${x.branches.length > 1 ? "s" : ""}</span></span></summary>
-        ${systemTree(x)}
+      ${systems.length ? `<div class="stack" style="margin-top:12px">${systems.map((x) => `<details class="sys-card"><summary><span><b>${esc(x.name)}</b><span class="tiny muted" style="display:block">${x.type === "off" ? "Attaque" : "Défense"}${refTag(x.root) ? ` · depuis ${refTag(x.root).toLowerCase()}` : ""} · ${x.branches.length} ${x.type === "off" ? "problème" : "scénario"}${x.branches.length > 1 ? "s" : ""}</span></span></summary>
+        ${systemTree(x, { links: true })}
         <div class="row" style="margin-top:10px"><button class="btn small" data-drillsys="${x.id}">${icon("play")} Driller</button><button class="btn ghost small" data-editsys="${x.id}">Modifier</button></div></details>`).join("")}</div>` : ""}
       <button class="btn ghost block" data-newsys style="margin-top:10px">${icon("plus")} Créer un système</button>
     </section>
@@ -152,12 +169,14 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-note]").forEach((li) => li.addEventListener("click", () => openNoteRead((st.notes || []).find((n) => n.id === li.dataset.note), ctx.refresh)));
   el.querySelector("[data-newcombo]").addEventListener("click", () => editCombo(null, ctx.refresh));
   el.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => editCombo(combos.find((c) => c.id === b.dataset.edit), ctx.refresh)));
+  el.querySelectorAll("[data-jr]").forEach((b) => b.addEventListener("click", () => { try { localStorage.setItem("fap:jeuRole", b.dataset.jr); } catch {} ctx.refresh(); }));
+  el.querySelectorAll("[data-decort]").forEach((b) => b.addEventListener("click", () => { const c = combos.find((x) => x.id === b.dataset.decort); const own = systemsFrom(`c:${c.id}`)[0]; editSystem(own || null, ctx.refresh, own ? {} : { root: `c:${c.id}`, type: comboRole(c) }); }));
   el.querySelectorAll("[data-drill]").forEach((b) => b.addEventListener("click", () => drillCombo(combos.find((c) => c.id === b.dataset.drill))));
   el.querySelectorAll("[data-mod]").forEach((li) => li.addEventListener("click", () => openModule(li.dataset.mod, ctx)));
   el.querySelector("[data-explore]").addEventListener("click", () => openExplorer(null, ctx.refresh));
   el.querySelector("[data-newsys]").addEventListener("click", () => editSystem(null, ctx.refresh));
-  el.querySelectorAll("[data-editsys]").forEach((b) => b.addEventListener("click", () => editSystem(systems.find((x) => x.id === b.dataset.editsys), ctx.refresh)));
-  el.querySelectorAll("[data-drillsys]").forEach((b) => b.addEventListener("click", () => drillSystem(systems.find((x) => x.id === b.dataset.drillsys))));
+  el.querySelectorAll("[data-editsys]").forEach((b) => b.addEventListener("click", () => editSystem(allSystems.find((x) => x.id === b.dataset.editsys), ctx.refresh)));
+  el.querySelectorAll("[data-drillsys]").forEach((b) => b.addEventListener("click", () => drillSystem(allSystems.find((x) => x.id === b.dataset.drillsys))));
   el.querySelectorAll("[data-disc]").forEach((b) => b.addEventListener("click", () => openDiscussion({ tab: b.dataset.disc }, (preset) => editCombo(null, ctx.refresh, preset))));
   const trap = (preset) => editCombo(null, ctx.refresh, preset);
   el.querySelector("[data-models]").addEventListener("click", () => openModelSearch(trap, ctx.refresh));
@@ -180,8 +199,10 @@ function drillCombo(c) {
   runTimer({ work: 30, rest: 30, rounds: 6, title: c.name, names: [c.seq.map(moveName).join(", ")] });
 }
 
-function editCombo(existing, after, preset) {
-  const c = existing ? { ...existing, seq: [...existing.seq] } : { id: uid(), name: preset?.name || "", seq: preset?.seq ? [...preset.seq] : [], when: preset?.when || "", zone: preset?.zone || "Distance", createdAt: todayKey() };
+export function editCombo(existing, after, preset) {
+  const c = existing ? { ...existing, seq: [...existing.seq] } : { id: uid(), name: preset?.name || "", seq: preset?.seq ? [...preset.seq] : [], when: preset?.when || "", zone: preset?.zone || "Distance", role: preset?.role || "off", createdAt: todayKey() };
+  c.role = comboRole(c);
+  const own = existing ? systemsFrom(`c:${c.id}`)[0] : null;
   const body = openSheet(existing ? "Modifier le combo" : "Noter un combo", `
     <form data-combo class="stack">
       <label class="field"><span>Nom</span><input class="input" name="name" value="${esc(c.name)}" placeholder="Ex. Mon entrée en double-leg"></label>
@@ -190,9 +211,12 @@ function editCombo(existing, after, preset) {
         <p class="hint">Touche les coups dans l'ordre. 1 jab · 2 direct · 3 crochet avant · 4 crochet arrière · 5 et 6 uppercuts.</p>
         <div class="chips" style="margin-top:8px">${MOVES.map((m) => `<button type="button" class="chip" data-move="${m.id}" title="${esc(m.name)}">${esc(m.label)}</button>`).join("")}</div>
       </div>
+      <div><span class="small" style="font-weight:600;display:block;margin-bottom:6px">Offensif ou défensif ?</span><div class="chips">${ROLES.map((r) => `<button type="button" class="chip" data-role="${r.id}" aria-pressed="${r.id === c.role}">${esc(r.label)}</button>`).join("")}</div></div>
       <label class="field"><span>Zone</span><select class="input" name="zone">${["Distance", "Distance → sol", "Clinch", "Clinch → sol", "Sol", "Défense"].map((z) => `<option ${z === c.zone ? "selected" : ""}>${z}</option>`).join("")}</select></label>
       <label class="field"><span>Quand je l'utilise</span><textarea class="input" name="when" rows="2" placeholder="Ex. Quand il recule en ligne droite">${esc(c.when)}</textarea></label>
       <button class="btn tape-btn block">Enregistrer</button>
+      <button type="button" class="btn ghost block" data-savesys>${icon("plus")} ${own ? "Enregistrer et voir son système" : "Enregistrer et décortiquer : problèmes et solutions"}</button>
+      ${own ? `<h3 class="sys-h">Son système</h3>${systemTree(own, { links: true })}` : ""}
       ${existing ? `<button type="button" class="btn ghost block" data-del style="color:var(--bad)">Supprimer ce combo</button>` : ""}
     </form>`);
   const box = body.querySelector("[data-seqbox]");
@@ -204,19 +228,25 @@ function editCombo(existing, after, preset) {
   const form = body.querySelector("[data-combo]");
   form.addEventListener("click", (e) => {
     const m = e.target.closest("[data-move]"); if (m) { c.seq.push(m.dataset.move); draw(); }
+    const ro = e.target.closest("[data-role]"); if (ro) { c.role = ro.dataset.role; form.querySelectorAll("[data-role]").forEach((b) => b.setAttribute("aria-pressed", b === ro)); return; }
+    if (e.target.closest("[data-savesys]")) { if (!saveIt()) return; const sys = systemsFrom(`c:${c.id}`)[0]; editSystem(sys || null, after, sys ? {} : { root: `c:${c.id}`, type: c.role }); return; }
     const d = e.target.closest("[data-del]");
     if (d) {
       if (!d.dataset.armed) { d.dataset.armed = "1"; d.textContent = "Confirmer la suppression"; return; }
-      store.update((s) => { s.combos = (s.combos || []).filter((x) => x.id !== c.id); }); closeSheet(); toast("Combo supprimé"); after();
+      store.update((s) => { s.combos = (s.combos || []).filter((x) => x.id !== c.id); }); closeSheet(); toast("Combo supprimé"); after?.();
     }
   });
+  const saveIt = () => {
+    c.name = form.elements.name.value.trim() || c.seq.map(moveLabel).join("-") || "Mon combo";
+    c.when = form.elements.when.value.trim(); c.zone = form.elements.zone.value;
+    if (!c.seq.length) { toast("Ajoute au moins un coup"); return false; }
+    store.update((s) => { s.combos = [...(s.combos || []).filter((x) => x.id !== c.id), c]; });
+    return true;
+  };
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    c.name = form.name.value.trim() || c.seq.map(moveLabel).join("-") || "Mon combo";
-    c.when = form.when.value.trim(); c.zone = form.zone.value;
-    if (!c.seq.length) return toast("Ajoute au moins un coup");
-    store.update((s) => { s.combos = [...(s.combos || []).filter((x) => x.id !== c.id), c]; });
-    closeSheet(); toast("Combo enregistré"); after();
+    if (!saveIt()) return;
+    closeSheet(); toast("Combo enregistré"); after?.();
   });
 }
 
