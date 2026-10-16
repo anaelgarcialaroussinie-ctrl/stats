@@ -149,7 +149,7 @@ function openEditor(p, after, openIdx = -1) {
 async function pickFromLibrary(onPick) {
   const body = openSheet("Vidéothèque du club", `<p class="muted small">Chargement…</p>`);
   let list = [];
-  try { list = (await sync.links()).filter((l) => !l.archived && safeUrl(l.url)); } catch {}
+  try { list = (await sync.links()).filter((l) => !l.archived && safeUrl(l.url) && !String(l.topic || "").startsWith("video:")); } catch {}
   body.innerHTML = `<button class="btn ghost small" data-cancel style="margin-bottom:10px">Retour au programme</button>` + (list.length ? `<ul class="list">${list.map((l, i) => `<li role="button" tabindex="0" data-pick="${i}"><div style="min-width:0;flex:1"><div style="font-weight:650">${esc(l.title)}</div><div class="meta">${esc(l.topic || "")}</div></div></li>`).join("")}</ul>` : `<p class="muted small">La vidéothèque est vide (Academy → Vidéothèque du club pour en ajouter), ou tu n'es pas connecté.</p>`);
   body.querySelector("[data-cancel]").addEventListener("click", () => onPick(null));
   body.querySelectorAll("[data-pick]").forEach((li) => li.addEventListener("click", () => { const l = list[Number(li.dataset.pick)]; onPick({ title: l.title, url: l.url }); }));

@@ -6,6 +6,8 @@ import { isMinor } from "../engine.js";
 import { MOVES } from "../academy-data.js";
 import { DISCUSSION_INTRO, REACTIONS, WEAPONS, QUESTIONS, reaction, weapon, weaponsFor, reactionsFor, questionsFor } from "../discussion-data.js";
 import { runTimer } from "./timer.js";
+import { vidRow, WEAPON_YT, COMBO_YT, refSlot } from "../videos.js";
+const WEAPON_TECH = { uppercut: ["uppercut"], elbow: ["elbow"], kneeclinch: ["knee", "clinch"], kneeint: ["knee"], flyknee: ["knee"], midkick: ["midkick"], highkick: ["highkick"], double: ["double"], guillotine: ["guillotine", "frontheadlock"], liver: ["body"], lhookend: ["lhook"], checkhook: ["lhook"] };
 
 const label = (id) => MOVES.find((m) => m.id === id)?.label || id;
 const seqHtml = (seq) => `<span class="seq">${seq.map((m) => `<span class="mv">${esc(label(m))}</span>`).join("")}</span>`;
@@ -53,6 +55,7 @@ export function openDiscussion(start = { tab: "questions" }, onTrap) {
         <span class="badge tiny">${esc(q.zone)}</span>
         <h3 class="display" style="font-size:28px;margin-top:6px">${esc(q.name)}</h3>
         <div style="margin-top:6px">${seqHtml(q.seq)}</div>
+        ${vidRow(`combo:${q.name}`, COMBO_YT[q.name], q.name)}
         <p class="small" style="margin-top:10px"><b>La question</b> : ${esc(q.asks)}</p>
         ${q.provokes.map((rid) => { const r = reaction(rid); return `<section class="panel" style="margin-top:10px">
           <div class="node them" style="margin:0 0 8px">S'il <b>${esc(r.short)}</b></div>
@@ -90,6 +93,8 @@ export function openDiscussion(start = { tab: "questions" }, onTrap) {
         ${levelBadge(w)}
         <h3 class="display" style="font-size:28px;margin-top:6px">${esc(w.name)}</h3>
         <p class="tiny muted" style="margin-top:4px">${esc(w.ufc)}</p>
+        ${vidRow(`arme:${w.id}`, WEAPON_YT[w.id], w.name)}
+        ${refSlot(WEAPON_TECH[w.id])}
         <h4 class="sys-h">Quand l'utiliser</h4><p class="small">${esc(w.when)}</p>
         <h4 class="sys-h">Pourquoi ça marche</h4><p class="small">${esc(w.why)}</p>
         <h4 class="sys-h">Comment le placer</h4><p class="small">${esc(w.setup)}</p>

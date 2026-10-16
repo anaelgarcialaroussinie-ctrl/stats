@@ -5,6 +5,7 @@ import { esc, icon, openSheet, closeSheet, toast } from "../ui.js";
 import { TECHS, MAIN_TECHS, FAMILIES, tech } from "../systems-data.js";
 import { runTimer } from "./timer.js";
 import { isMinor } from "../engine.js";
+import { vidRow, TECH_YT, refSlot } from "../videos.js";
 
 const name = (id) => tech(id)?.name || id;
 
@@ -25,6 +26,8 @@ export function openExplorer(startId, after) {
       <div class="row" style="gap:8px;margin-bottom:6px">${history.length ? `<button class="icon-btn" data-back aria-label="Technique précédente">${icon("back")}</button>` : `<button class="btn ghost small" data-all>Toutes les techniques</button>`}</div>
       <h3 class="display" style="font-size:30px">${esc(t.name)}</h3>
       <p class="muted small">${esc(t.zone)}</p>
+      ${vidRow(`tech:${t.id}`, TECH_YT[t.id], t.name)}
+      ${refSlot([t.id])}
       ${t.opens.length ? `<h4 class="sys-h">Ce qu'elle ouvre</h4><div class="chips">${t.opens.map((o) => `<button class="chip open-chip" data-t="${o}">${esc(name(o))}</button>`).join("")}</div>` : ""}
       ${t.counters.length ? `<h4 class="sys-h">Ce à quoi elle t'expose</h4>${t.counters.map((c) => `<div class="risk">
           <div class="risk-top"><button class="chip risk-chip" data-t="${c.by}">${esc(name(c.by))}</button></div>

@@ -307,7 +307,7 @@ async function drawLinks(el, ctx) {
   if (!box || !sync.connected() || window.FAP_PREVIEW) return;
   const paint = (all) => {
     if (!el.contains(box)) return;
-    const rows = all.filter((r) => !String(r.topic || "").startsWith("parcours"));
+    const rows = all.filter((r) => !/^(parcours|video:)/.test(String(r.topic || "")));
     if (!rows.length) { box.innerHTML = `<p class="muted small">Aucune vidéo pour l'instant.</p>`; return; }
     const topics = [...new Set(rows.map((r) => r.topic))];
     const coach = sync.role() === "coach";

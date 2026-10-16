@@ -3,6 +3,7 @@
 import { esc, icon, openSheet } from "./ui.js";
 import { EX, PREHAB } from "./sc-data.js";
 import { BODY_PARTS } from "./body-data.js";
+import { vidRow, PREHAB_YT } from "./videos.js";
 
 export const GUIDES = {
   // ---- lutte debout
@@ -59,12 +60,11 @@ export const GUIDES = {
 
 // exercices de prépa physique et de prévention
 Object.values(EX).forEach((e) => { if (!GUIDES[e.name]) GUIDES[e.name] = { steps: e.steps, errors: e.errors, yt: e.yt }; });
-Object.values(PREHAB).forEach((z) => z.items.forEach(([n, d]) => { if (!GUIDES[n]) GUIDES[n] = { steps: [d], errors: [], yt: n }; }));
+Object.values(PREHAB).forEach((z) => z.items.forEach(([n, d]) => { if (!GUIDES[n]) GUIDES[n] = { steps: [d], errors: [], yt: PREHAB_YT[n] || n }; }));
 
 BODY_PARTS.forEach((b) => [...b.mobility, ...b.stretches].forEach((e) => { if (!GUIDES[e.name]) GUIDES[e.name] = { steps: e.steps, errors: e.errors, yt: e.yt }; }));
 
 export const hasGuide = (name) => Boolean(GUIDES[name]);
-const ytUrl = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 
 // version dépliable, à placer sous un exercice
 export function guideInline(name) {
@@ -72,8 +72,7 @@ export function guideInline(name) {
   return `<details class="guide"><summary>Comment faire ?</summary>
     <ol class="plan-steps">${g.steps.map((x) => `<li class="small">${esc(x)}</li>`).join("")}</ol>
     ${g.errors.length ? `<p class="tiny" style="margin:6px 0"><b>À éviter</b> : ${g.errors.map(esc).join(" · ")}</p>` : ""}
-    <a class="btn small" href="${ytUrl(g.yt)}" target="_blank" rel="noopener">${icon("play")} Voir en vidéo</a>
-  </details>`;
+  </details>${vidRow(`ex:${name}`, g.yt, name)}`;
 }
 
 export function openGuide(name, how = "") {
@@ -83,7 +82,7 @@ export function openGuide(name, how = "") {
     <h3 class="sys-h">Comment faire</h3>
     <ol class="plan-steps">${g.steps.map((s) => `<li class="small">${esc(s)}</li>`).join("")}</ol>
     <div class="notice is-warn small" style="margin-top:12px"><b>Erreurs fréquentes</b><ul class="bul" style="margin-top:6px">${g.errors.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div>
-    <a class="btn tape-btn block" style="margin-top:14px" href="${ytUrl(g.yt)}" target="_blank" rel="noopener">${icon("play")} Voir des vidéos du mouvement</a>
-    <p class="hint">Ouvre une recherche YouTube ciblée sur ce mouvement. Ton coach peut aussi ajouter sa vidéo de référence dans la vidéothèque du club.</p>`
+    <h3 class="sys-h">En vidéo</h3>${vidRow(`ex:${name}`, g.yt, name)}
+    <p class="hint">« Voir en vidéo » ouvre une recherche YouTube ciblée sur ce mouvement ; « Vidéo du coach » apparaît quand ton coach a choisi sa vidéo de référence.</p>`
     : `<p class="small">${esc(how)}</p>`);
 }

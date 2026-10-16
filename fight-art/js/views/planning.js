@@ -4,6 +4,7 @@ import { esc, icon, openSheet, toast } from "../ui.js";
 import { CLUB_CLASSES, CLUB_METHOD, DAYS_LONG, hm } from "../data.js";
 import { frDate } from "../engine.js";
 import { sync } from "../sync.js";
+import { ytUrl } from "../videos.js";
 import { programFor, customSlotsOn, loadPrograms, safeUrl } from "../programs.js";
 import { openPrograms } from "./programs-view.js";
 import { cachedSeason, loadSeason, seasonWeek, MMA_CLASSES, LUTA_CLASSES, lutaWeek, mondaysFrom, setSeasonDates } from "../season.js";
@@ -20,6 +21,7 @@ export function seasonCard(key, p, { compact = false } = {}) {
     <div class="tiny">Saison · bloc ${sw.bloc?.n} « ${esc(sw.bloc?.title || "")} » · semaine ${w.n} sur 40</div>
     <div class="small" style="margin-top:4px">MMA : <b>${esc(w.title)}</b></div>
     ${l ? `<div class="small" style="margin-top:2px">Luta Livre : <b>${esc(l.title)}</b></div>` : ""}
+    ${compact ? "" : `<div class="vid-row"><a class="btn small" href="${ytUrl(`${w.title} MMA technique`)}" target="_blank" rel="noopener">${icon("play")} Vidéos MMA du thème</a>${l ? `<a class="btn small ghost" href="${ytUrl(`${l.title} nogi grappling`)}" target="_blank" rel="noopener">${icon("play")} Vidéos Luta Livre</a>` : ""}</div>`}
   </div>`;
 }
 

@@ -120,3 +120,7 @@ export function openParcoursMMA() {
   });
   draw();
 }
+
+// pour les fiches techniques et les armes : les vidéos du cursus reliées à une technique
+export const MMA_VIDEOS = VIDEOS;
+export const ytParams = params;
