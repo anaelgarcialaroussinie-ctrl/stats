@@ -2,6 +2,7 @@
 // Les vidéos sont proposées via une recherche YouTube ciblée (les liens fixes finissent par disparaître).
 import { esc, icon, openSheet } from "./ui.js";
 import { EX, PREHAB } from "./sc-data.js";
+import { BODY_PARTS } from "./body-data.js";
 
 export const GUIDES = {
   // ---- lutte debout
@@ -59,6 +60,8 @@ export const GUIDES = {
 // exercices de prépa physique et de prévention
 Object.values(EX).forEach((e) => { if (!GUIDES[e.name]) GUIDES[e.name] = { steps: e.steps, errors: e.errors, yt: e.yt }; });
 Object.values(PREHAB).forEach((z) => z.items.forEach(([n, d]) => { if (!GUIDES[n]) GUIDES[n] = { steps: [d], errors: [], yt: n }; }));
+
+BODY_PARTS.forEach((b) => [...b.mobility, ...b.stretches].forEach((e) => { if (!GUIDES[e.name]) GUIDES[e.name] = { steps: e.steps, errors: e.errors, yt: e.yt }; }));
 
 export const hasGuide = (name) => Boolean(GUIDES[name]);
 const ytUrl = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;

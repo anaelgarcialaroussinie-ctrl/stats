@@ -1,5 +1,5 @@
 // Cache hors ligne : l'appli s'ouvre même sans réseau.
-const VERSION = "fap-v65";
+const VERSION = "fap-v66";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/app.css", "./fonts/archivo.ttf",
   "./js/app.js", "./js/store.js", "./js/engine.js", "./js/data.js", "./js/ui.js", "./js/off.js", "./js/sync.js", "./js/config.js",
@@ -17,6 +17,9 @@ const ASSETS = [
   "./js/sc-data.js",
   "./js/qualities.js",
   "./js/season.js",
+  "./js/body-data.js",
+  "./js/health.js",
+  "./js/views/bodycare.js",
   "./js/luta-season.js",
   "./js/sound.js",
   "./js/reminders.js",

@@ -11,6 +11,7 @@ import { computeQualities, PRIORITY_TEXT } from "../qualities.js";
 import { openPlanning, seasonCard } from "./planning.js";
 import { cachedSeason, loadSeason } from "../season.js";
 import { openVideoCoach } from "./video.js";
+import { mobilityHtml, stretchHtml, healthHtml, bindBodycare } from "./bodycare.js";
 
 const LEVEL_PRIORITIES = {
   1: ["Chutes et relevé technique", "Garde et déplacements", "Jab, direct, défense de base", "Sprawl, double-leg, single-leg", "Positions : montée, contrôle latéral, dos, garde", "Sorties : shrimp et pont", "Étranglement arrière et guillotine"],
@@ -39,7 +40,7 @@ export function renderTraining(el, ctx) {
   // les séances de prépa de la semaine, ouvrables n'importe quel jour
   const monday = addDays(addDays(key, -dayIndex(key)), 7 * scOffset);
   const scWeek = [...Array(7)].map((_, di) => { const k = addDays(monday, di); const b = dayPlan(p, k, st).blocks.find((x) => x.type === "strength" || x.type === "recovery"); return b ? { di, key: k, block: b } : null; }).filter(Boolean);
-  const seg = segBar("seances", [["club", "Club"], ["prepa", "Prépa physique"], ["tech", "Technique"]], "club");
+  const seg = segBar("seances", [["club", "Club"], ["prepa", "Prépa"], ["tech", "Technique"], ["mobilite", "Mobilité"], ["etirements", "Étirements"], ["sante", "Santé"]], "club");
   const seasonCardT = seasonCard(key, p);
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 10px">Séances</h1>
@@ -77,9 +78,7 @@ export function renderTraining(el, ctx) {
       ${(() => { const q = computeQualities(p, st); return `<h3 class="sys-h" style="margin-top:12px">Ton profil athlétique</h3>
         ${q.data ? `${q.strengths.length ? `<div class="small"><b>Points forts</b><ul class="bul">${q.strengths.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>` : ""}${q.gaps.length ? `<div class="small" style="margin-top:6px"><b>À développer</b><ul class="bul">${q.gaps.map((x) => `<li>${esc(x.text)}</li>`).join("")}</ul></div>` : ""}${q.priority ? `<p class="notice small" style="margin-top:8px">${esc(PRIORITY_TEXT[q.priority])} Tes séances sont adaptées automatiquement.</p>` : ""}` : `<p class="muted small" style="margin:0">Fais les tests de l'onglet Progrès (saut vertical, tractions, rameur, squat) : l'appli repère tes qualités et tes lacunes et adapte tes séances.</p>`}
         ${q.notes.map((n) => `<p class="tiny muted" style="margin:6px 0 0">${esc(n)}</p>`).join("")}`; })()}
-      <h3 class="sys-h" style="margin-top:12px">Zones à renforcer</h3>
-      <div class="chips">${Object.keys(PREHAB).map((z) => `<button class="chip" data-prehab="${esc(z)}" aria-pressed="${zonesMine.includes(z)}">${esc(z)}</button>`).join("")}</div>
-      <p class="hint">Touche une zone : son programme de renforcement, 10 à 15 minutes, avec les explications et les vidéos.</p>
+      <button class="btn ghost small" data-gosante style="margin-top:12px">Renforcer mes zones fragiles : onglet Santé</button>
     </section>
 
     ${lifts.length && !isMinor(p) ? chargesHtml : ""}
@@ -105,13 +104,17 @@ export function renderTraining(el, ctx) {
     </section>
 
     </div>
+    <div data-seg="mobilite">${mobilityHtml()}</div>
+    <div data-seg="etirements">${stretchHtml()}</div>
+    <div data-seg="sante">${healthHtml()}</div>
   `;
 
   bindSeg(el, "seances", seg.cur);
+  bindBodycare(el, ctx);
+  el.querySelector("[data-gosante]")?.addEventListener("click", () => el.querySelector('[data-seg-to="sante"]')?.click());
   if (!cachedSeason()) loadSeason().then((x) => { if (x && el.isConnected) ctx.refresh(); });
   el.querySelector("[data-planning]").addEventListener("click", () => openPlanning());
   el.querySelector("[data-videocoach]").addEventListener("click", () => openVideoCoach(ctx.refresh));
-  el.querySelectorAll("[data-prehab]").forEach((b) => b.addEventListener("click", () => openPrehab(b.dataset.prehab, ctx.refresh)));
   el.querySelectorAll("[data-scw]").forEach((b) => b.addEventListener("click", () => { scOffset += Number(b.dataset.scw); ctx.refresh(); }));
   el.querySelectorAll("[data-scopen]").forEach((b) => b.addEventListener("click", () => { const x = scWeek[Number(b.dataset.scopen)]; openBlock(x.key, x.block, ctx.refresh, ctx.go); }));
   el.querySelectorAll("[data-scday]").forEach((b) => b.addEventListener("click", () => { const i = Number(b.dataset.scday); store.update((s2) => { const d = s2.profile.scDays || []; s2.profile.scDays = d.includes(i) ? d.filter((x) => x !== i) : [...d, i].sort(); }); ctx.refresh(); }));
