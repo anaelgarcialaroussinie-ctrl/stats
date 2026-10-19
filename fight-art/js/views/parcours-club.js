@@ -163,3 +163,6 @@ export function openParcoursClub() {
   });
   draw(); load();
 }
+
+// pour les parcours guidés : la même sélection de vidéos
+export const LUTA_VIDEOS = VIDEOS;

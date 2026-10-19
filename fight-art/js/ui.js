@@ -166,7 +166,7 @@ export function segBar(key, items, def) {
 }
 export function bindSeg(el, key, cur) {
   const show = (id) => {
-    el.querySelectorAll("[data-seg]").forEach((b) => { b.hidden = b.dataset.seg !== id; });
+    el.querySelectorAll("[data-seg]").forEach((b) => { b.hidden = b.dataset.seg.replace(/\d+$/, "") !== id; }); // « jeu2 », « jeu3 » : suite de l'onglet « jeu »
     el.querySelectorAll("[data-seg-to]").forEach((b) => b.setAttribute("aria-selected", b.dataset.segTo === id));
     try { localStorage.setItem(SEG_KEY + key, id); } catch {}
   };

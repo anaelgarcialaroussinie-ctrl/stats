@@ -3,6 +3,7 @@ import { myNote, studyNotes } from "../study-notes.js";
 import { openLocalVideos } from "./localvids.js";
 import { openParcoursClub } from "./parcours-club.js";
 import { openParcoursMMA } from "./parcours-mma.js";
+import { cursusHome, bindCursusHome } from "./cursus.js";
 import { esc, icon, openSheet, closeSheet, toast, segBar, bindSeg } from "../ui.js";
 import { ZONES, STANCES, PROFILES, MOVES, CLASSIC_COMBOS, ARTS, SCOUT_FIELDS, PLAN_FIELDS } from "../academy-data.js";
 import { runTimer } from "./timer.js";
@@ -39,11 +40,12 @@ export function renderAcademy(el, ctx) {
   const allSystems = st.systems || [];
   const systems = allSystems.filter((x) => jr === "all" || x.type === jr);
   const sysCount = (ref) => systemsFrom(ref).length;
-  const seg = segBar("academy", [["jeu", "Mon jeu"], ["comprendre", "Comprendre"], ["modeles", "Modèles"], ["videos", "Vidéos"]], "jeu");
+  const seg = segBar("academy", [["parcours", "Parcours"], ["jeu", "Mon jeu"], ["comprendre", "Comprendre"], ["modeles", "Modèles"], ["videos", "Vidéos"]], "parcours");
 
   el.innerHTML = `
     <h1 class="display" style="margin:6px 0 10px">Academy</h1>
     ${seg.html}
+    <div data-seg="parcours">${cursusHome()}</div>
     <div data-seg="jeu">
     <section class="panel jeu-method" style="margin-top:12px">
       <b>Construire son jeu, pas à pas</b>
@@ -186,6 +188,7 @@ export function renderAcademy(el, ctx) {
   el.querySelectorAll("[data-model]").forEach((li) => li.addEventListener("click", () => openModel(li.dataset.model, trap, ctx.refresh)));
   el.querySelector("[data-library]")?.addEventListener("click", openLibrary);
   el.querySelector("[data-localvids]")?.addEventListener("click", openLocalVideos);
+  bindCursusHome(el, { refresh: ctx.refresh, lab: () => openStyleLab(null, trap, ctx.refresh), scout: () => editScout(null, ctx.refresh) });
   el.querySelector("[data-parcours]")?.addEventListener("click", openParcoursClub);
   el.querySelector("[data-mmacursus]")?.addEventListener("click", openParcoursMMA);
   el.querySelector("[data-addlink]")?.addEventListener("click", () => editLink(null, ctx.refresh));
